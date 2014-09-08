@@ -8,6 +8,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sync"
 )
 
@@ -64,6 +65,9 @@ func (d Dup) String() string {
 }
 
 func main() {
+	// Use all available CPU cores
+	runtime.GOMAXPROCS(runtime.NumCPU())
+
 	// Process command line params
 	paths := os.Args[1:]
 
