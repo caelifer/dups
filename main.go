@@ -77,7 +77,7 @@ func (d Dup) String() string {
 var WorkQueue = make(chan balancer.Request)
 
 // Start balancer on the background
-var _ = balancer.NewBalancer(WorkQueue)
+var _ = balancer.New(WorkQueue)
 
 func main() {
 	// Use all available CPU cores
