@@ -3,7 +3,6 @@ package balancer
 import (
 	"container/heap"
 	"fmt"
-	"log"
 )
 
 type Balancer struct {
@@ -48,7 +47,7 @@ func New(work chan Request) *Balancer {
 						break
 					}
 					// We reached capacity, clean-up first
-					log.Println("Blocking on", err)
+					// log.Println("Blocking on", err)
 					b.completed(<-b.done)
 				}
 			case w := <-b.done:
