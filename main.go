@@ -68,7 +68,7 @@ func (d Dup) String() string {
 	num := len(d.Paths)
 
 	for _, p := range d.Paths {
-		out += fmt.Sprintf("%s(%d):%q\n", hash, num, p)
+		out += fmt.Sprintf("%d:%s:%q\n", num, hash, p)
 	}
 	return out
 }
@@ -90,15 +90,11 @@ func main() {
 		// Default is current directory
 		paths = []string{"."}
 	}
-	// Start worker pool manager
-	quit := make(chan bool)
 
 	// Start map-reduce
 	for dup := range Reduce(Map(paths)) {
 		fmt.Println(dup)
 	}
-	// Stop pool manager
-	// quit <- true
 }
 
 func Reduce(in <-chan Node) <-chan Dup {
