@@ -10,6 +10,8 @@ import (
 	"path/filepath"
 	"runtime"
 	"sync"
+
+	"github.com/caelifer/dups/pool"
 )
 
 // Node type
@@ -61,8 +63,18 @@ type Dup struct {
 }
 
 func (d Dup) String() string {
-	return fmt.Sprintf("%s %+v", d.Hash, d.Paths)
+	out := ""
+	hash := d.Hash
+	num := len(d.Paths)
+
+	for _, p := range d.Paths {
+		out += fmt.Sprintf("%s(%d):%q\n", hash, num, p)
+	}
+	return out
 }
+
+// Global pool manager
+var manager = pool.NewPool()
 
 func main() {
 	// Use all available CPU cores
@@ -75,11 +87,16 @@ func main() {
 		// Default is current directory
 		paths = []string{"."}
 	}
+	// Start worker pool manager
+	quit := make(chan bool)
+	manager.Run(quit)
 
 	// Start map-reduce
 	for dup := range Reduce(Map(paths)) {
 		fmt.Println(dup)
 	}
+	// Stop pool manager
+	quit <- true
 }
 
 func Reduce(in <-chan Node) <-chan Dup {
@@ -137,15 +154,32 @@ func Map(paths []string) <-chan Node {
 					// Add to wait group
 					wg.Add(1)
 
+					// Calculate hash using worker pool
+					go func() {
+						in := make(chan pool.Result)
+						manager.Enqueue(pool.NewJob(
+							func() pool.Result {
+								return func(path string, fi os.FileInfo) pool.Result {
+									defer wg.Done() // Signal done
+									n, err := MakeNode(path, fi)
+									if err != nil {
+										log.Println("WARN", err)
+									}
+									return pool.Result(n)
+								}(path, info)
+							}, in))
+						out <- (<-in).(Node)
+					}()
+
 					// Calculate hash
-					go func(path string, fi os.FileInfo) {
-						defer wg.Done() // Signal done
-						n, err := MakeNode(path, fi)
-						if err != nil {
-							log.Println("WARN", err)
-						}
-						out <- n
-					}(path, info)
+					// 					go func(path string, fi os.FileInfo) {
+					// 						defer wg.Done() // Signal done
+					// 						n, err := MakeNode(path, fi)
+					// 						if err != nil {
+					// 							log.Println("WARN", err)
+					// 						}
+					// 						out <- n
+					// 					}(path, info)
 				}
 				return nil
 			})

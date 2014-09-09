@@ -4,16 +4,14 @@ import (
 	"runtime"
 	"sync"
 
-	"github.com/caelifer/dups/heap"
+	"data-structures/heap/heap"
 )
 
 const (
 	WorkerMultiplier = 50
 )
 
-type Result interface {
-	Value() interface{}
-}
+type Result interface{}
 
 type Task func() Result
 
@@ -110,7 +108,7 @@ func NewPool() *Pool {
 	}
 }
 
-func (p *Pool) Enqeue(j *Job, out <-chan Result) {
+func (p *Pool) Enqueue(j *Job) {
 	p.Lock()
 	defer p.Unlock()
 
@@ -136,7 +134,12 @@ func (p *Pool) Dequeue() *Worker {
 	p.Lock()
 	defer p.Unlock()
 
-	return p.workers.Pop().(*Worker)
+	w := p.workers.Pop()
+	if w == nil {
+		return nil
+	}
+
+	return w.(*Worker)
 }
 
 func (p *Pool) Run(done <-chan bool) {
