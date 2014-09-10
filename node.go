@@ -13,6 +13,7 @@ import (
 type Node struct {
 	Path string // File path
 	Size int64  // File size
+	Hash string // String form of SHA1 hash
 }
 
 func (n Node) Value() interface{} {

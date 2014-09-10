@@ -25,7 +25,7 @@ func (d Dup) Value() interface{} {
 }
 
 func (d Dup) String() string {
-	return fmt.Sprintf("%d:%s:%q\n", d.Count, d.Hash, d.Path)
+	return fmt.Sprintf("%d:%s:%q", d.Count, d.Hash, d.Path)
 }
 
 // Global pool manager
@@ -60,8 +60,37 @@ func main() {
 	keyValChan = mapreduce.Map(makeFileHashMapFnFrom(valChan, false))
 	valChan = mapreduce.Reduce(keyValChan, reduceByHash)
 
-	for dup := range keyValChan {
-		fmt.Println(dup)
+	// Final reduce before reporting
+	dups := make(chan Dup)
+	go func(out chan<- Dup) {
+		byHash := make(map[string][]string)
+		for x := range valChan {
+			n := x.Value().(Node) // Type assert
+
+			// Aggregate
+			if v, ok := byHash[n.Hash]; ok {
+				// Found node with the same file size
+				byHash[n.Hash] = append(v, n.Path)
+			} else {
+				byHash[n.Hash] = []string{n.Path}
+			}
+		}
+
+		// Reduce
+		for hash, paths := range byHash {
+			count := len(paths)
+			if count > 1 {
+				for _, path := range paths {
+					out <- Dup{Hash: hash, Count: count, Path: path}
+				}
+			}
+		}
+		close(out)
+	}(dups)
+
+	// Report
+	for d := range dups {
+		fmt.Println(d)
 	}
 }
 
@@ -157,7 +186,7 @@ func makeFileHashMapFnFrom(in <-chan mapreduce.Value, fast bool) mapreduce.MapFn
 }
 
 func reduceByHash(out chan<- mapreduce.Value, in <-chan mapreduce.KeyValue) {
-	byHash := make(map[string][]string)
+	byHash := make(map[string][]Node)
 
 	for x := range in {
 		hash := x.Key()
@@ -165,22 +194,22 @@ func reduceByHash(out chan<- mapreduce.Value, in <-chan mapreduce.KeyValue) {
 
 		if v, ok := byHash[hash]; ok {
 			// Found node with the same file size
-			byHash[hash] = append(v, node.Path)
+			byHash[hash] = append(v, node)
 		} else {
-			byHash[hash] = []string{node.Path}
+			byHash[hash] = []Node{node}
 		}
 	}
 
 	// Send out aggregeted results
-	for hash, paths := range byHash {
-		if len(paths) > 1 {
+	for hash, nodes := range byHash {
+		if len(nodes) > 1 {
 			// Send output for potential duplicates
-			for _, path := range paths {
-				out <- mapreduce.Value(Dup{Hash: hash, Path: path})
+			for _, node := range nodes {
+				node.Hash = hash
+				out <- mapreduce.Value(node)
 			}
 		}
 	}
-	close(out)
 }
 
 func IsFile(fi os.FileInfo) bool {
