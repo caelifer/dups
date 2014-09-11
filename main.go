@@ -32,9 +32,9 @@ func (d Dup) String() string {
 
 // Global stats for activity report
 var stats struct {
-	TotlalNodes   uint64
-	TotalCopies   uint64
-	TotalFreeSize uint64
+	TotlalNodes      uint64
+	TotalCopies      uint64
+	TotalWastedSpace uint64
 }
 
 // Global pool manager
@@ -97,7 +97,7 @@ func main() {
 			count := len(nodes)
 			if count > 1 {
 				// Update free size stats
-				atomic.AddUint64(&stats.TotalFreeSize, uint64(nodes[0].Size*int64(count-1)))
+				atomic.AddUint64(&stats.TotalWastedSpace, uint64(nodes[0].Size*int64(count-1)))
 
 				for _, node := range nodes {
 					// Update dups number stats
@@ -114,8 +114,8 @@ func main() {
 		fmt.Println(d)
 	}
 	// Stats report
-	fmt.Printf("Stats: examined %d files, found %d dups, total free size: %.2fGB\n",
-		stats.TotlalNodes, stats.TotalCopies, float64(stats.TotalFreeSize)/(1024*1024*1024))
+	log.Printf("Stats: examined %d files, found %d dups, total wasted space  %.2fGB\n",
+		stats.TotlalNodes, stats.TotalCopies, float64(stats.TotalWastedSpace)/(1024*1024*1024))
 }
 
 // makeNodeMapFnWithPaths
