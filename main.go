@@ -114,7 +114,7 @@ func main() {
 		fmt.Println(d)
 	}
 	// Stats report
-	log.Printf("Stats: examined %d files, found %d dups, total wasted space  %.2fGB\n",
+	log.Printf("Examined %d files, found %d dups, total wasted space %.2fGB\n",
 		stats.TotlalNodes, stats.TotalCopies, float64(stats.TotalWastedSpace)/(1024*1024*1024))
 }
 
