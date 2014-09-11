@@ -1,11 +1,13 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"log"
 	"os"
 	"path/filepath"
 	"runtime"
+	"runtime/pprof"
 	"sync"
 	"sync/atomic"
 
@@ -43,17 +45,46 @@ var WorkQueue = make(chan balancer.Request)
 // Start balancer on the background
 var _ = balancer.New(WorkQueue)
 
+// Flags
+var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")
+var memprofile = flag.String("memprofile", "", "write memory profile to this file")
+
 func main() {
+	// First parse flags
+	flag.Parse()
+
 	// Use all available CPU cores
 	runtime.GOMAXPROCS(runtime.NumCPU())
 
+	if *cpuprofile != "" {
+		f, err := os.Create(*cpuprofile)
+		if err != nil {
+			log.Fatal(err)
+		}
+		pprof.StartCPUProfile(f)
+		defer pprof.StopCPUProfile()
+	}
+
+	if *memprofile != "" {
+		f, err := os.Create(*memprofile)
+		if err != nil {
+			log.Fatal(err)
+		}
+		defer func() {
+			pprof.WriteHeapProfile(f)
+			f.Close()
+		}()
+	}
+
 	// Process command line params
-	paths := os.Args[1:]
+	paths := flag.Args()
 
 	if len(paths) == 0 {
 		// Default is current directory
 		paths = []string{"."}
 	}
+
+	log.Printf("INFO finding dups in %+v", paths)
 
 	// Channel interfaces between Map() and Reduce() functions
 	var keyValChan <-chan mapreduce.KeyValue
@@ -78,17 +109,17 @@ func main() {
 	// Final reduce before reporting
 	dups := make(chan Dup)
 	go func(out chan<- Dup) {
-		byHash := make(map[string][]Node)
+		byHash := make(map[string][]*Node)
 
 		for x := range valChan {
-			n := x.Value().(Node) // Type assert
+			n := x.Value().(*Node) // Type assert
 
 			// Aggregate
 			if v, ok := byHash[n.Hash]; ok {
 				// Found node with the same file size
 				byHash[n.Hash] = append(v, n)
 			} else {
-				byHash[n.Hash] = []Node{n}
+				byHash[n.Hash] = []*Node{n}
 			}
 		}
 
@@ -136,7 +167,7 @@ func makeNodeMapFnWithPaths(paths []string) mapreduce.MapFn {
 					size := info.Size()
 					out <- mapreduce.NewKVType(
 						mapreduce.KeyTypeFromString(path),
-						Node{Path: path, Size: size},
+						&Node{Path: path, Size: size},
 					)
 				}
 				return nil
@@ -151,20 +182,20 @@ func makeNodeMapFnWithPaths(paths []string) mapreduce.MapFn {
 
 // reduceByFileName custom function remove nodes with duplicate paths
 func reduceByFileName(out chan<- mapreduce.Value, in <-chan mapreduce.KeyValue) {
-	bySize := make(map[mapreduce.KeyType]mapreduce.Value)
+	byName := make(map[mapreduce.KeyType]mapreduce.Value)
 
 	for x := range in {
-		path := x.Key()          // Get key
-		node := x.Value().(Node) // Assert type
+		path := x.Key()           // Get key
+		node := x.Value().(*Node) // Assert type
 
 		// Add values to the map for aggregation, skip nodes with the same path
-		if _, ok := bySize[path]; !ok {
-			bySize[path] = node
+		if _, ok := byName[path]; !ok {
+			byName[path] = node
 		}
 	}
 
 	// Send potential duplicates one-by-one to the downstream processing
-	for _, node := range bySize {
+	for _, node := range byName {
 		// Increase seen files counter
 		atomic.AddUint64(&stats.TotlalNodes, 1)
 
@@ -176,7 +207,7 @@ func reduceByFileName(out chan<- mapreduce.Value, in <-chan mapreduce.KeyValue) 
 func makeFileSizeMapFnFrom(in <-chan mapreduce.Value) mapreduce.MapFn {
 	return func(out chan<- mapreduce.KeyValue) {
 		for x := range in {
-			node := x.Value().(Node) // Assert type
+			node := x.Value().(*Node) // Assert type
 
 			out <- mapreduce.NewKVType(
 				mapreduce.KeyTypeFromInt64(node.Size),
@@ -191,8 +222,8 @@ func reduceByFileSize(out chan<- mapreduce.Value, in <-chan mapreduce.KeyValue) 
 	bySize := make(map[mapreduce.KeyType][]mapreduce.Value)
 
 	for x := range in {
-		size := x.Key()          // Get key
-		node := x.Value().(Node) // Assert type
+		size := x.Key()           // Get key
+		node := x.Value().(*Node) // Assert type
 
 		// Add values to the map for aggregation
 		if v, ok := bySize[size]; ok {
@@ -218,13 +249,13 @@ func makeFileHashMapFnFrom(in <-chan mapreduce.Value, fast bool) mapreduce.MapFn
 	return func(out chan<- mapreduce.KeyValue) {
 		var wg sync.WaitGroup
 		for x := range in {
-			node := x.Value().(Node) // Assert type
+			node := x.Value().(*Node) // Assert type
 
 			// Add to wait group
 			wg.Add(1)
 
 			// Calculate hash using balancer
-			go func(n Node) {
+			go func(n *Node) {
 				WorkQueue <- func() {
 					defer wg.Done() // Signal done
 
@@ -256,17 +287,17 @@ func makeFileHashMapFnFrom(in <-chan mapreduce.Value, fast bool) mapreduce.MapFn
 }
 
 func reduceByHash(out chan<- mapreduce.Value, in <-chan mapreduce.KeyValue) {
-	byHash := make(map[mapreduce.KeyType][]Node)
+	byHash := make(map[mapreduce.KeyType][]*Node)
 
 	for x := range in {
 		hash := x.Key()
-		node := x.Value().(Node) // Assert type
+		node := x.Value().(*Node) // Assert type
 
 		if v, ok := byHash[hash]; ok {
 			// Found node with the same file size
 			byHash[hash] = append(v, node)
 		} else {
-			byHash[hash] = []Node{node}
+			byHash[hash] = []*Node{node}
 		}
 	}
 

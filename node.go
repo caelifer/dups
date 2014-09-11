@@ -16,7 +16,7 @@ type Node struct {
 	Hash string // String form of SHA1 hash
 }
 
-func (n Node) Value() interface{} {
+func (n *Node) Value() interface{} {
 	return n
 }
 
