@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"sync"
+	"sync/atomic"
 
 	"github.com/caelifer/dups/balancer"
 	"github.com/caelifer/dups/mapreduce"
@@ -14,8 +15,9 @@ import (
 
 // Dup type describes found duplicat file
 type Dup struct {
-	Hash  string // Crypto signature
 	Count int    // Number of identical copies for the hash
+	Size  int64  // File size
+	Hash  string // Crypto signature
 	Path  string // Paths with matching signatures
 }
 
@@ -25,7 +27,14 @@ func (d Dup) Value() interface{} {
 }
 
 func (d Dup) String() string {
-	return fmt.Sprintf("%d:%s:%q", d.Count, d.Hash, d.Path)
+	return fmt.Sprintf("%d:%s:%q:%d", d.Count, d.Hash, d.Path, d.Size)
+}
+
+// Global stats for activity report
+var stats struct {
+	TotlalNodes   uint64
+	TotalCopies   uint64
+	TotalFreeSize uint64
 }
 
 // Global pool manager
@@ -63,25 +72,31 @@ func main() {
 	// Final reduce before reporting
 	dups := make(chan Dup)
 	go func(out chan<- Dup) {
-		byHash := make(map[string][]string)
+		byHash := make(map[string][]Node)
+
 		for x := range valChan {
 			n := x.Value().(Node) // Type assert
 
 			// Aggregate
 			if v, ok := byHash[n.Hash]; ok {
 				// Found node with the same file size
-				byHash[n.Hash] = append(v, n.Path)
+				byHash[n.Hash] = append(v, n)
 			} else {
-				byHash[n.Hash] = []string{n.Path}
+				byHash[n.Hash] = []Node{n}
 			}
 		}
 
 		// Reduce
-		for hash, paths := range byHash {
-			count := len(paths)
+		for hash, nodes := range byHash {
+			count := len(nodes)
 			if count > 1 {
-				for _, path := range paths {
-					out <- Dup{Hash: hash, Count: count, Path: path}
+				// Update free size stats
+				atomic.AddUint64(&stats.TotalFreeSize, uint64(nodes[0].Size*int64(count-1)))
+
+				for _, node := range nodes {
+					// Update dups number stats
+					atomic.AddUint64(&stats.TotalCopies, uint64(1))
+					out <- Dup{Count: count, Size: node.Size, Hash: hash, Path: node.Path}
 				}
 			}
 		}
@@ -92,6 +107,9 @@ func main() {
 	for d := range dups {
 		fmt.Println(d)
 	}
+	// Stats report
+	fmt.Printf("Stats: examined %d files, found %d dups, total free size: %.2fGB\n",
+		stats.TotlalNodes, stats.TotalCopies, float64(stats.TotalFreeSize)/(1024*1024*1024))
 }
 
 // makeFileSizeMapFnWithPaths
@@ -109,6 +127,8 @@ func makeFileSizeMapFnWithPaths(paths []string) mapreduce.MapFn {
 
 				// Only process simple files
 				if IsFile(info) {
+					// Increase seen files counter
+					atomic.AddUint64(&stats.TotlalNodes, 1)
 					size := info.Size()
 					out <- mapreduce.NewKVType(
 						mapreduce.KeyTypeFromInt64(size),
@@ -165,11 +185,20 @@ func makeFileHashMapFnFrom(in <-chan mapreduce.Value, fast bool) mapreduce.MapFn
 			// Calculate hash using balancer
 			go func(n Node) {
 				WorkQueue <- func() {
-					defer wg.Done()               // Signal done
-					hash := n.calculateHash(fast) // Fast hash calculation - SHA1 has of first 1024 bytes
+					defer wg.Done() // Signal done
+
+					// Default hash value for files < 1024 if fast is true
+					hash := "0h"
+
+					// Little optimization to avoid calculating fast hash on small files
+					if !fast || node.Size > blockSize {
+						// Always calculate hash if fast == false or file size > blockSize
+						hash = n.calculateHash(fast) // Fast hash calculation - SHA1 of first 1024 bytes
+					}
 
 					// Don't process files for which we failed to calculate SHA1 hash
 					if hash == "" {
+						log.Printf("WARN Unable calculate SHA1 hash for %q\n", node.Path)
 						return
 					}
 
