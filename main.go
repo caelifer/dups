@@ -147,7 +147,7 @@ func makeFileSizeMapFnWithPaths(paths []string) mapreduce.MapFn {
 
 // reduceByFileSize custom function to filter files by size
 func reduceByFileSize(out chan<- mapreduce.Value, in <-chan mapreduce.KeyValue) {
-	bySize := make(map[string][]mapreduce.Value)
+	bySize := make(map[mapreduce.KeyType][]mapreduce.Value)
 
 	for x := range in {
 		size := x.Key()          // Get key
@@ -215,7 +215,7 @@ func makeFileHashMapFnFrom(in <-chan mapreduce.Value, fast bool) mapreduce.MapFn
 }
 
 func reduceByHash(out chan<- mapreduce.Value, in <-chan mapreduce.KeyValue) {
-	byHash := make(map[string][]Node)
+	byHash := make(map[mapreduce.KeyType][]Node)
 
 	for x := range in {
 		hash := x.Key()
@@ -234,7 +234,7 @@ func reduceByHash(out chan<- mapreduce.Value, in <-chan mapreduce.KeyValue) {
 		if len(nodes) > 1 {
 			// Send output for potential duplicates
 			for _, node := range nodes {
-				node.Hash = hash
+				node.Hash = hash.String()
 				out <- mapreduce.Value(node)
 			}
 		}

@@ -10,7 +10,7 @@ type Value interface {
 // Key interace is there to make sure that the value can be used in go built-in
 // map as a key.
 type Key interface {
-	Key() string
+	Key() KeyType
 }
 
 // KeyValue interface describes objects produced by Map and used by Reduce as
@@ -24,7 +24,11 @@ type KeyValue interface {
 
 type KeyType string
 
-func (kt KeyType) Key() string {
+func (kt KeyType) Key() KeyType {
+	return kt
+}
+
+func (kt KeyType) String() string {
 	return string(kt)
 }
 
@@ -54,7 +58,7 @@ func NewKVType(k Key, v Value) *KVType {
 	}
 }
 
-func (kvt KVType) Key() string {
+func (kvt KVType) Key() KeyType {
 	return kvt.key.Key()
 }
 
