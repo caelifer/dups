@@ -59,13 +59,19 @@ func main() {
 	var keyValChan <-chan mapreduce.KeyValue
 	var valChan <-chan mapreduce.Value
 
-	// Start map-reduce
-	keyValChan = mapreduce.Map(makeFileSizeMapFnWithPaths(paths))
+	// Start map-reduce and remove duplicate path nodes
+	keyValChan = mapreduce.Map(makeNodeMapFnWithPaths(paths))
+	valChan = mapreduce.Reduce(keyValChan, reduceByFileName)
+
+	// Map by filesize
+	keyValChan = mapreduce.Map(makeFileSizeMapFnFrom(valChan))
 	valChan = mapreduce.Reduce(keyValChan, reduceByFileSize)
 
+	// Map by fast SHA1 hash (first 1024 bytes)
 	keyValChan = mapreduce.Map(makeFileHashMapFnFrom(valChan, true))
 	valChan = mapreduce.Reduce(keyValChan, reduceByHash)
 
+	// Map by SHA1 hash (full file hashing)
 	keyValChan = mapreduce.Map(makeFileHashMapFnFrom(valChan, false))
 	valChan = mapreduce.Reduce(keyValChan, reduceByHash)
 
@@ -112,8 +118,8 @@ func main() {
 		stats.TotlalNodes, stats.TotalCopies, float64(stats.TotalFreeSize)/(1024*1024*1024))
 }
 
-// makeFileSizeMapFnWithPaths
-func makeFileSizeMapFnWithPaths(paths []string) mapreduce.MapFn {
+// makeNodeMapFnWithPaths
+func makeNodeMapFnWithPaths(paths []string) mapreduce.MapFn {
 	return func(out chan<- mapreduce.KeyValue) {
 
 		// Process all command line paths
@@ -127,11 +133,9 @@ func makeFileSizeMapFnWithPaths(paths []string) mapreduce.MapFn {
 
 				// Only process simple files
 				if IsFile(info) {
-					// Increase seen files counter
-					atomic.AddUint64(&stats.TotlalNodes, 1)
 					size := info.Size()
 					out <- mapreduce.NewKVType(
-						mapreduce.KeyTypeFromInt64(size),
+						mapreduce.KeyTypeFromString(path),
 						Node{Path: path, Size: size},
 					)
 				}
@@ -141,6 +145,43 @@ func makeFileSizeMapFnWithPaths(paths []string) mapreduce.MapFn {
 			if err != nil {
 				log.Fatal(err)
 			}
+		}
+	}
+}
+
+// reduceByFileName custom function remove nodes with duplicate paths
+func reduceByFileName(out chan<- mapreduce.Value, in <-chan mapreduce.KeyValue) {
+	bySize := make(map[mapreduce.KeyType]mapreduce.Value)
+
+	for x := range in {
+		path := x.Key()          // Get key
+		node := x.Value().(Node) // Assert type
+
+		// Add values to the map for aggregation, skip nodes with the same path
+		if _, ok := bySize[path]; !ok {
+			bySize[path] = node
+		}
+	}
+
+	// Send potential duplicates one-by-one to the downstream processing
+	for _, node := range bySize {
+		// Increase seen files counter
+		atomic.AddUint64(&stats.TotlalNodes, 1)
+
+		out <- node
+	}
+}
+
+// Very simple function to map nodes by size
+func makeFileSizeMapFnFrom(in <-chan mapreduce.Value) mapreduce.MapFn {
+	return func(out chan<- mapreduce.KeyValue) {
+		for x := range in {
+			node := x.Value().(Node) // Assert type
+
+			out <- mapreduce.NewKVType(
+				mapreduce.KeyTypeFromInt64(node.Size),
+				node,
+			)
 		}
 	}
 }
