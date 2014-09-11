@@ -27,7 +27,7 @@ func (d Dup) Value() interface{} {
 }
 
 func (d Dup) String() string {
-	return fmt.Sprintf("%d:%s:%q:%d", d.Count, d.Hash, d.Path, d.Size)
+	return fmt.Sprintf("%s:%d:%d:%q", d.Hash, d.Count, d.Size, d.Path)
 }
 
 // Global stats for activity report
@@ -239,7 +239,7 @@ func makeFileHashMapFnFrom(in <-chan mapreduce.Value, fast bool) mapreduce.MapFn
 
 					// Don't process files for which we failed to calculate SHA1 hash
 					if hash == "" {
-						log.Printf("WARN Unable calculate SHA1 hash for %q\n", node.Path)
+						// log.Printf("WARN Unable calculate SHA1 hash for %q\n", node.Path)
 						return
 					}
 
