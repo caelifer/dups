@@ -1,10 +1,12 @@
 package balancer
 
-import "fmt"
+import (
+	"fmt"
+	"runtime"
+)
 
 // Max number of workers
-// var maxWorkerNumber = runtime.NumCPU()
-var maxWorkerNumber = 1
+var maxWorkerNumber = runtime.NumCPU()
 
 type Pool []*Worker
 
