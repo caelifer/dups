@@ -6,7 +6,7 @@ type Request func()
 
 type Worker struct {
 	reqs    chan Request
-	pending int
+	pending int // managed by the balancer.Balancer
 	index   int // heap index
 }
 

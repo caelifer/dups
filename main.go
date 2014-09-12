@@ -5,13 +5,13 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"path/filepath"
 	"runtime"
 	"runtime/pprof"
 	"sync"
 	"sync/atomic"
 
 	"github.com/caelifer/dups/balancer"
+	"github.com/caelifer/dups/fstree"
 	"github.com/caelifer/dups/mapreduce"
 )
 
@@ -39,11 +39,8 @@ var stats struct {
 	TotalWastedSpace uint64
 }
 
-// Global pool manager
-var WorkQueue = make(chan balancer.Request)
-
-// Start balancer on the background
-var _ = balancer.New(WorkQueue)
+// Global pool manager interfaced via WorkQueue
+var WorkQueue = balancer.NewWorkQueue()
 
 // Flags
 var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")
@@ -152,10 +149,10 @@ func main() {
 // makeNodeMapFnWithPaths
 func makeNodeMapFnWithPaths(paths []string) mapreduce.MapFn {
 	return func(out chan<- mapreduce.KeyValue) {
-
 		// Process all command line paths
-		for _, p := range paths {
-			err := filepath.Walk(p, func(path string, info os.FileInfo, err error) error {
+		for _, path_ := range paths {
+			// err := filepath.Walk(path_, func(path string, info os.FileInfo, err error) error {
+			err := fstree.Walk(WorkQueue, path_, func(path string, info os.FileInfo, err error) error {
 				// Handle passthrough error
 				if err != nil {
 					log.Println("WARN", err)

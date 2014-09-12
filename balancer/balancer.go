@@ -14,12 +14,12 @@ type Balancer struct {
 // It returns pointer to the newly creatd object. As a part of the implementation, this method creates
 // a pool of workers and start each of them in a separate gorutine. Once the worker pool is operational,
 // it sets up a job dispatcher also running in its own goroutine.
-func New(work chan Request) *Balancer {
+func NewWorkQueue() chan<- Request {
 	// Create new pool memory structure
 	pool := NewPool()
 
-	// Convert pool to priority queue
-	// heap.Init(&pool)
+	// Create workQueue
+	workQueue := make(chan Request)
 
 	// Balancer
 	b := &Balancer{
@@ -37,10 +37,10 @@ func New(work chan Request) *Balancer {
 	// log.Printf("Complete balancer construction: %s\n", b)
 
 	// Run balancer
-	go func(work chan Request) {
+	go func(workQueue chan Request) {
 		for {
 			select {
-			case req := <-work:
+			case req := <-workQueue:
 				for {
 					err := b.dispatch(req)
 					if err == nil {
@@ -55,9 +55,9 @@ func New(work chan Request) *Balancer {
 			}
 			// log.Printf("Load: %s\n", b)
 		}
-	}(work)
+	}(workQueue)
 
-	return b
+	return workQueue
 }
 
 // String() pretty prints Balancer object state
