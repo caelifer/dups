@@ -45,7 +45,7 @@ func (node *Node) calculateHash(fast bool) string {
 
 		// Paranoid sanity check
 		if n != node.Size {
-			err = errors.New("Partial read")
+			err = errors.New("Partial read: " + node.Path)
 			log.Println("WARN", err)
 			return ""
 		}
