@@ -14,9 +14,9 @@ type Balancer struct {
 // It returns pointer to the newly creatd object. As a part of the implementation, this method creates
 // a pool of workers and start each of them in a separate gorutine. Once the worker pool is operational,
 // it sets up a job dispatcher also running in its own goroutine.
-func NewWorkQueue() chan<- Request {
+func NewWorkQueue(nWorkers int) chan<- Request {
 	// Create new pool memory structure
-	pool := NewPool()
+	pool := NewPool(nWorkers)
 
 	// Create workQueue
 	workQueue := make(chan Request)

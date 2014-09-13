@@ -39,12 +39,16 @@ var stats struct {
 	TotalWastedSpace uint64
 }
 
-// Global pool manager interfaced via WorkQueue
-var WorkQueue = balancer.NewWorkQueue()
+// Max number of workers
+// var maxWorkerNumber = runtime.NumCPU()
 
 // Flags
 var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")
 var memprofile = flag.String("memprofile", "", "write memory profile to this file")
+var maxWorkerNumber = flag.Int("jobs", runtime.NumCPU(), "Number of parallel jobs")
+
+// Global pool manager interfaced via WorkQueue
+var WorkQueue = balancer.NewWorkQueue(*maxWorkerNumber)
 
 func main() {
 	// First parse flags

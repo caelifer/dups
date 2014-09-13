@@ -1,17 +1,11 @@
 package balancer
 
-import (
-	"fmt"
-	"runtime"
-)
-
-// Max number of workers
-var maxWorkerNumber = runtime.NumCPU()
+import "fmt"
 
 type Pool []*Worker
 
-func NewPool() Pool {
-	return make([]*Worker, 0, maxWorkerNumber)
+func NewPool(nWorkers int) Pool {
+	return make([]*Worker, 0, nWorkers)
 }
 
 func (p Pool) getStats() []int {
