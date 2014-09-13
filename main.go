@@ -130,7 +130,7 @@ func main() {
 
 				for _, node := range nodes {
 					// Update dups number stats
-					atomic.AddUint64(&stats.TotalCopies, uint64(1))
+					atomic.AddUint64(&stats.TotalCopies, 1)
 					out <- dup{Count: count, Size: node.Size, Hash: hash, Path: node.Path}
 				}
 			}
