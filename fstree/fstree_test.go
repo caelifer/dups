@@ -2,6 +2,7 @@ package fstree_test
 
 import (
 	"os"
+	"runtime"
 	"strconv"
 	"strings"
 	"testing"
@@ -20,11 +21,14 @@ func TestTreeWalk(t *testing.T) {
 
 	testRoot := "/Users/timour/golang/src/github.com/caelifer/dups/t/"
 
+	nprocs := runtime.NumCPU()
+	t.Logf("Using %d CPU threads\n", nprocs)
+
 	for i := 10; i < 20; i++ {
 		results := make([]string, 0, 256)
 		testdir := testRoot + strconv.Itoa(i)
 
-		err := fstree.Walk(balancer.NewWorkQueue(), testdir, func(path string, info os.FileInfo, err error) error {
+		err := fstree.Walk(balancer.NewWorkQueue(nprocs), testdir, func(path string, info os.FileInfo, err error) error {
 			results = append(results, path)
 			return nil
 		})
@@ -54,7 +58,10 @@ func TestTreeWalk11(t *testing.T) {
 	results := make([]string, 0, 256)
 	testdir := testRoot + strconv.Itoa(i)
 
-	err := fstree.Walk(balancer.NewWorkQueue(), testdir, func(path string, info os.FileInfo, err error) error {
+	nprocs := runtime.NumCPU()
+	t.Logf("Using %d CPU threads\n", nprocs)
+
+	err := fstree.Walk(balancer.NewWorkQueue(nprocs), testdir, func(path string, info os.FileInfo, err error) error {
 		results = append(results, path)
 		return nil
 	})
@@ -83,7 +90,10 @@ func TestTreeWalk12(t *testing.T) {
 	results := make([]string, 0, 256)
 	testdir := testRoot + strconv.Itoa(i)
 
-	err := fstree.Walk(balancer.NewWorkQueue(), testdir, func(path string, info os.FileInfo, err error) error {
+	nprocs := runtime.NumCPU()
+	t.Logf("Using %d CPU threads\n", nprocs)
+
+	err := fstree.Walk(balancer.NewWorkQueue(nprocs), testdir, func(path string, info os.FileInfo, err error) error {
 		results = append(results, path)
 		return nil
 	})
@@ -112,7 +122,10 @@ func TestTreeWalk13(t *testing.T) {
 	results := make([]string, 0, 256)
 	testdir := testRoot + strconv.Itoa(i)
 
-	err := fstree.Walk(balancer.NewWorkQueue(), testdir, func(path string, info os.FileInfo, err error) error {
+	nprocs := runtime.NumCPU()
+	t.Logf("Using %d CPU threads\n", nprocs)
+
+	err := fstree.Walk(balancer.NewWorkQueue(nprocs), testdir, func(path string, info os.FileInfo, err error) error {
 		results = append(results, path)
 		return nil
 	})
@@ -141,7 +154,10 @@ func TestTreeWalkEmpty(t *testing.T) {
 	results := make([]string, 0, 256)
 	testdir := testRoot
 
-	err := fstree.Walk(balancer.NewWorkQueue(), testdir, func(path string, info os.FileInfo, err error) error {
+	nprocs := runtime.NumCPU()
+	t.Logf("Using %d CPU threads\n", nprocs)
+
+	err := fstree.Walk(balancer.NewWorkQueue(nprocs), testdir, func(path string, info os.FileInfo, err error) error {
 		results = append(results, path)
 		return nil
 	})
