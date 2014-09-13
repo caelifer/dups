@@ -15,8 +15,8 @@ import (
 	"github.com/caelifer/dups/mapreduce"
 )
 
-// Dup type describes found duplicat file
-type Dup struct {
+// dup type describes found duplicate file
+type dup struct {
 	Count int    // Number of identical copies for the hash
 	Size  int64  // File size
 	Hash  string // Crypto signature
@@ -24,11 +24,11 @@ type Dup struct {
 }
 
 // Value implements mapreduce.Value interface
-func (d Dup) Value() interface{} {
+func (d dup) Value() interface{} {
 	return d
 }
 
-func (d Dup) String() string {
+func (d dup) String() string {
 	return fmt.Sprintf("%s:%d:%d:%q", d.Hash, d.Count, d.Size, d.Path)
 }
 
@@ -39,13 +39,12 @@ var stats struct {
 	TotalWastedSpace uint64
 }
 
-// Max number of workers
-// var maxWorkerNumber = runtime.NumCPU()
-
 // Flags
-var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")
-var memprofile = flag.String("memprofile", "", "write memory profile to this file")
-var maxWorkerNumber = flag.Int("jobs", runtime.NumCPU(), "Number of parallel jobs")
+var (
+	cpuprofile      = flag.String("cpuprofile", "", "write cpu profile to file")
+	memprofile      = flag.String("memprofile", "", "write memory profile to this file")
+	maxWorkerNumber = flag.Int("jobs", runtime.NumCPU(), "Number of parallel jobs")
+)
 
 // Global pool manager interfaced via WorkQueue
 var WorkQueue = balancer.NewWorkQueue(*maxWorkerNumber)
@@ -54,8 +53,8 @@ func main() {
 	// First parse flags
 	flag.Parse()
 
-	// Use all available CPU cores
-	runtime.GOMAXPROCS(runtime.NumCPU())
+	// Prep runtime to use the maxWorkerNumber real threads
+	runtime.GOMAXPROCS(*maxWorkerNumber)
 
 	if *cpuprofile != "" {
 		f, err := os.Create(*cpuprofile)
@@ -106,8 +105,8 @@ func main() {
 	valChan = mapreduce.Reduce(keyValChan, reduceByHash)
 
 	// Final reduce before reporting
-	dups := make(chan Dup)
-	go func(out chan<- Dup) {
+	dups := make(chan dup)
+	go func(out chan<- dup) {
 		byHash := make(map[string][]*Node)
 
 		for x := range valChan {
@@ -132,7 +131,7 @@ func main() {
 				for _, node := range nodes {
 					// Update dups number stats
 					atomic.AddUint64(&stats.TotalCopies, uint64(1))
-					out <- Dup{Count: count, Size: node.Size, Hash: hash, Path: node.Path}
+					out <- dup{Count: count, Size: node.Size, Hash: hash, Path: node.Path}
 				}
 			}
 		}
