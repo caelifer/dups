@@ -81,8 +81,6 @@ func main() {
 		paths = []string{"."}
 	}
 
-	log.Printf("INFO finding dups in %+v", paths)
-
 	// Channel interfaces between Map() and Reduce() functions
 	var keyValChan <-chan mapreduce.KeyValue
 	var valChan <-chan mapreduce.Value
