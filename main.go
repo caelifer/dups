@@ -23,15 +23,18 @@ var stats struct {
 	TotalWastedSpace uint64
 }
 
+// Internal constant to control number of Worker threads in balancer's worker pool
+const workerPoolMultiplier = 2 // Use twice the available cores
+
 // Flags
 var (
 	cpuprofile      = flag.String("cpuprofile", "", "write cpu profile to file")
-	memprofile      = flag.String("memprofile", "", "write memory profile to this file")
-	maxWorkerNumber = flag.Int("jobs", runtime.NumCPU(), "Number of parallel jobs")
+	memprofile      = flag.String("memprofile", "", "write memory profile to file")
+	maxWorkerNumber = flag.Int("jobs", runtime.NumCPU()*workerPoolMultiplier, "Number of parallel jobs")
 )
 
 // Global pool manager interfaced via WorkQueue
-var WorkQueue = balancer.NewWorkQueue(*maxWorkerNumber * 2) // Use twice the available cores
+var WorkQueue = balancer.NewWorkQueue(*maxWorkerNumber)
 
 func main() {
 	// First parse flags
@@ -250,7 +253,7 @@ func makeFileHashMapFnFrom(in <-chan mapreduce.Value, fast bool) mapreduce.MapFn
 					hash := "0h"
 
 					// Little optimization to avoid calculating fast hash on small files
-					if !fast || node.Size > blockSize {
+					if !fast || n.Size > blockSize {
 						// Always calculate hash if fast == false or file size > blockSize
 						hash = n.calculateHash(fast) // Fast hash calculation - SHA1 of first 1024 bytes
 					}
