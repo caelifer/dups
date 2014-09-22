@@ -109,12 +109,7 @@ func main() {
 	go func(out chan<- dup) {
 		byHash := make(map[string][]*Node)
 
-		f := true
 		for x := range valChan {
-			if f {
-				log.Println("Started final reduce before reporting stage")
-				f = false
-			}
 			n := x.Value().(*Node) // Type assert
 
 			// Aggregate
@@ -156,12 +151,7 @@ func main() {
 func makeNodeMapFnWithPaths(paths []string) mapreduce.MapFn {
 	return func(out chan<- mapreduce.KeyValue) {
 		// Process all command line paths
-		f := true
 		for _, path_ := range paths {
-			if f {
-				log.Println("Started Node mapping stage")
-				f = false
-			}
 			// err := filepath.Walk(path_, func(path string, info os.FileInfo, err error) error {
 			err := fstree.Walk(WorkQueue, path_, func(path string, info os.FileInfo, err error) error {
 				// Handle passthrough error
@@ -194,12 +184,7 @@ func makeNodeMapFnWithPaths(paths []string) mapreduce.MapFn {
 func reduceByFileName(out chan<- mapreduce.Value, in <-chan mapreduce.KeyValue) {
 	byName := make(map[mapreduce.KeyType]*Node)
 
-	f := true
 	for x := range in {
-		if f {
-			log.Println("Started reduce by file name stage")
-			f = false
-		}
 		path := x.Key()           // Get key
 		node := x.Value().(*Node) // Assert type
 
@@ -214,12 +199,7 @@ func reduceByFileName(out chan<- mapreduce.Value, in <-chan mapreduce.KeyValue) 
 // Very simple function to map nodes by size
 func makeFileSizeMapFnFrom(in <-chan mapreduce.Value) mapreduce.MapFn {
 	return func(out chan<- mapreduce.KeyValue) {
-		f := true
 		for x := range in {
-			if f {
-				log.Println("Started maping Node size stage")
-				f = false
-			}
 			node := x.Value().(*Node) // Assert type
 
 			out <- mapreduce.NewKVType(
@@ -234,12 +214,7 @@ func makeFileSizeMapFnFrom(in <-chan mapreduce.Value) mapreduce.MapFn {
 func reduceByFileSize(out chan<- mapreduce.Value, in <-chan mapreduce.KeyValue) {
 	bySize := make(map[mapreduce.KeyType][]*Node)
 
-	f := true
 	for x := range in {
-		if f {
-			log.Println("Started reducing by Node size stage")
-			f = false
-		}
 		size := x.Key()           // Get key
 		node := x.Value().(*Node) // Assert type
 
@@ -262,18 +237,8 @@ func reduceByFileSize(out chan<- mapreduce.Value, in <-chan mapreduce.KeyValue) 
 
 func makeFileHashMapFnFrom(in <-chan mapreduce.Value, fast bool) mapreduce.MapFn {
 	return func(out chan<- mapreduce.KeyValue) {
-		hashType := "full"
-		if fast {
-			hashType = "fast"
-		}
 		var wg sync.WaitGroup
-
-		f := true
 		for x := range in {
-			if f {
-				log.Printf("Started Node mapping by %s SHA1 hash stage\n", hashType)
-				f = false
-			}
 			node := x.Value().(*Node) // Assert type
 
 			// Add to wait group
@@ -314,12 +279,7 @@ func makeFileHashMapFnFrom(in <-chan mapreduce.Value, fast bool) mapreduce.MapFn
 func reduceByHash(out chan<- mapreduce.Value, in <-chan mapreduce.KeyValue) {
 	byHash := make(map[mapreduce.KeyType][]*Node)
 
-	f := true
 	for x := range in {
-		if f {
-			log.Println("Started reducing by Node SHA1 hash stage")
-			f = false
-		}
 		hash := x.Key()
 		node := x.Value().(*Node) // Assert type
 
