@@ -114,5 +114,4 @@ func (w *walker) walkDir(node *node, err error, fn nodeFn) {
 			}
 		}
 	}()
-	// ?Block until recursion is finished and report any errors
 }
