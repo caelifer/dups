@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"path/filepath"
 	"runtime"
 	"runtime/pprof"
 	"sync"
@@ -32,7 +31,7 @@ var (
 )
 
 // Global pool manager interfaced via WorkQueue
-var WorkQueue = balancer.NewWorkQueue(*maxWorkerNumber)
+var WorkQueue = balancer.NewWorkQueue(*maxWorkerNumber * 2) // Use twice the available cores
 
 func main() {
 	// First parse flags
@@ -138,7 +137,7 @@ func makeNodeMapFnWithPaths(paths []string) mapreduce.MapFn {
 		// Process all command line paths
 		for _, path_ := range paths {
 			// err := filepath.Walk(path_, func(path string, info os.FileInfo, err error) error {
-			err := fstree.Walk(WorkQueue, filepath.Clean(path_), func(path string, info os.FileInfo, err error) error {
+			err := fstree.Walk(WorkQueue, path_, func(path string, info os.FileInfo, err error) error {
 				// Handle passthrough error
 				if err != nil {
 					log.Println("WARN", err)

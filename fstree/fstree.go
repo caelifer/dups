@@ -4,6 +4,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"path/filepath"
 	"sync"
 
 	"github.com/caelifer/dups/balancer"
@@ -48,7 +49,7 @@ type node struct {
 }
 
 func newNode(path string, info os.FileInfo) *node {
-	return &node{path: path, info: info}
+	return &node{path: filepath.Clean(path), info: info}
 }
 
 type walker struct {
