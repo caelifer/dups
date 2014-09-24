@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"flag"
 	"fmt"
 	"log"
@@ -125,10 +126,15 @@ func main() {
 		close(out)
 	}(dups)
 
+	// Buffer output
+	w := bufio.NewWriter(os.Stdout)
 	// Report
 	for d := range dups {
-		fmt.Println(d)
+		fmt.Fprintln(w, d)
 	}
+	// Flush any pending writes
+	w.Flush() // Ignore error
+
 	// Stats report
 	log.Printf("Examined %d files in %d directories, found %d dups, total wasted space %.2fGB\n",
 		stats.TotalFiles, stats.TotalDirs, stats.TotalCopies, float64(stats.TotalWastedSpace)/(1024*1024*1024))
