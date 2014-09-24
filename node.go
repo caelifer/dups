@@ -40,8 +40,8 @@ func (node *Node) calculateHash(fast bool) string {
 		_, err = io.CopyN(hash, file, blockSize)
 
 	} else {
-		// Filesystem and memory optimal read
-		n, err = io.Copy(hash, file)
+		// Always read no more that the file size already determined
+		n, err = io.CopyN(hash, file, node.Size) // Optimal filesystem reads and memory use
 
 		// Paranoid sanity check
 		if n != node.Size {
