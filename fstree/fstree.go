@@ -18,23 +18,15 @@ type nodeFn func(path string, info os.FileInfo, err error) error
 // Primary interface - matches signature of filepath.Walk()
 func Walk(workQueue chan<- balancer.Request, path string, fn nodeFn) error {
 	// Create walker object
-	w := newWalker(path, workQueue)
+	w := newWalker(workQueue, path)
 
 	// Construct node from provided path
 	info, err := os.Lstat(path)
 
 	// On success ...
 	if err == nil {
-		n := newNode(path, info)
-
-		err = w.walkNode(n, nil, fn)
-
-		// Check if node is directory
-		if n.info.IsDir() {
-			// Traverse directrory asnyncronously
-			w.walkDir(n, err, fn)
-
-		}
+		// Process node
+		err = w.walkNode(newNode(path, info), nil, fn)
 	}
 
 	// Wait util all nodes are processed
@@ -58,7 +50,7 @@ type walker struct {
 	wg        sync.WaitGroup
 }
 
-func newWalker(root string, workQueue chan<- balancer.Request) *walker {
+func newWalker(workQueue chan<- balancer.Request, root string) *walker {
 	return &walker{
 		root:      root,
 		workQueue: workQueue,
@@ -66,9 +58,16 @@ func newWalker(root string, workQueue chan<- balancer.Request) *walker {
 }
 
 func (w *walker) walkNode(node *node, err error, fn nodeFn) error {
-	// log.Println("XXX Processing", node.path)
 	// Process node by calling client function
-	return fn(node.path, node.info, err)
+	err = fn(node.path, node.info, err)
+
+	// ... then, recursively process directories
+	if node.info.IsDir() {
+		// Traverse directrory asnyncronously using balancer
+		w.walkDir(node, err, fn)
+	}
+
+	return err
 }
 
 func (w *walker) walkDir(node *node, err error, fn nodeFn) {
@@ -98,19 +97,8 @@ func (w *walker) walkDir(node *node, err error, fn nodeFn) {
 			for _, entry := range dirents {
 				path := node.path + string(os.PathSeparator) + entry.Name()
 
-				// Create node and report error if we have problem with Lstat call
-				n := newNode(path, entry)
-
-				// Recursively process each node
-
-				// First, process current node
-				err = w.walkNode(n, err, fn)
-
-				// Check if it is a directory
-				if n.info.IsDir() {
-					// Traverse directrory asnyncronously
-					w.walkDir(n, err, fn)
-				}
+				// Process node, ignore errors
+				w.walkNode(newNode(path, entry), nil, fn)
 			}
 		}
 	}()
