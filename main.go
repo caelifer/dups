@@ -14,6 +14,7 @@ import (
 	"github.com/caelifer/dups/balancer"
 	"github.com/caelifer/dups/fstree"
 	"github.com/caelifer/dups/mapreduce"
+	"github.com/caelifer/dups/node"
 )
 
 // Global stats for activity report
@@ -93,19 +94,19 @@ func main() {
 	valChan = mapreduce.Reduce(keyValChan, reduceByHash)
 
 	// Final reduce before reporting
-	dups := make(chan Dup)
-	go func(out chan<- Dup) {
-		byHash := make(map[string][]*Node)
+	dups := make(chan node.Dup)
+	go func(out chan<- node.Dup) {
+		byHash := make(map[string][]*node.Node)
 
 		for x := range valChan {
-			n := x.Value().(*Node) // Type assert
+			n := x.Value().(*node.Node) // Type assert
 
 			// Aggregate
 			if v, ok := byHash[n.Hash]; ok {
 				// Found node with the same file size
 				byHash[n.Hash] = append(v, n)
 			} else {
-				byHash[n.Hash] = []*Node{n}
+				byHash[n.Hash] = []*node.Node{n}
 			}
 		}
 
@@ -116,10 +117,10 @@ func main() {
 				// Update free size stats
 				atomic.AddUint64(&stats.TotalWastedSpace, uint64(nodes[0].Size*int64(count-1)))
 
-				for _, node := range nodes {
+				for _, n := range nodes {
 					// Update dups number stats
 					atomic.AddUint64(&stats.TotalCopies, 1)
-					out <- Dup{*node, count}
+					out <- node.Dup{*n, count}
 				}
 			}
 		}
@@ -164,7 +165,7 @@ func makeNodeMapFnWithPaths(paths []string) mapreduce.MapFn {
 					size := info.Size()
 					out <- mapreduce.NewKVType(
 						mapreduce.KeyTypeFromString(path),
-						&Node{Path: path, Size: size},
+						&node.Node{Path: path, Size: size},
 					)
 					// Increase seen files counter
 					atomic.AddUint64(&stats.TotalFiles, 1)
@@ -188,11 +189,11 @@ func makeNodeMapFnWithPaths(paths []string) mapreduce.MapFn {
 
 // reduceByFileName custom function remove nodes with duplicate paths
 func reduceByFileName(out chan<- mapreduce.Value, in <-chan mapreduce.KeyValue) {
-	byName := make(map[mapreduce.KeyType]*Node)
+	byName := make(map[mapreduce.KeyType]*node.Node)
 
 	for x := range in {
-		path := x.Key()           // Get key
-		node := x.Value().(*Node) // Assert type
+		path := x.Key()                // Get key
+		node := x.Value().(*node.Node) // Assert type
 
 		// Add values to the map for aggregation, skip nodes with the same path
 		if _, ok := byName[path]; !ok {
@@ -206,7 +207,7 @@ func reduceByFileName(out chan<- mapreduce.Value, in <-chan mapreduce.KeyValue) 
 func makeFileSizeMapFnFrom(in <-chan mapreduce.Value) mapreduce.MapFn {
 	return func(out chan<- mapreduce.KeyValue) {
 		for x := range in {
-			node := x.Value().(*Node) // Assert type
+			node := x.Value().(*node.Node) // Assert type
 
 			out <- mapreduce.NewKVType(
 				mapreduce.KeyTypeFromInt64(node.Size),
@@ -218,11 +219,11 @@ func makeFileSizeMapFnFrom(in <-chan mapreduce.Value) mapreduce.MapFn {
 
 // reduceByFileSize custom function to filter files by size
 func reduceByFileSize(out chan<- mapreduce.Value, in <-chan mapreduce.KeyValue) {
-	bySize := make(map[mapreduce.KeyType][]*Node)
+	bySize := make(map[mapreduce.KeyType][]*node.Node)
 
 	for x := range in {
-		size := x.Key()           // Get key
-		node := x.Value().(*Node) // Assert type
+		size := x.Key()             // Get key
+		n := x.Value().(*node.Node) // Assert type
 
 		// Add values to the map for aggregation
 		if v, ok := bySize[size]; ok {
@@ -231,12 +232,13 @@ func reduceByFileSize(out chan<- mapreduce.Value, in <-chan mapreduce.KeyValue) 
 				// First time we found duplicate, send first node too
 				out <- v[0]
 			}
-			bySize[size] = append(v, node)
+			// Add new node to a list
+			bySize[size] = append(v, n)
 			// Send duplicate downstream
-			out <- node
+			out <- n
 		} else {
 			// Store first copy
-			bySize[size] = []*Node{node}
+			bySize[size] = []*node.Node{n}
 		}
 	}
 }
@@ -245,37 +247,30 @@ func makeFileHashMapFnFrom(in <-chan mapreduce.Value, fast bool) mapreduce.MapFn
 	return func(out chan<- mapreduce.KeyValue) {
 		var wg sync.WaitGroup
 		for x := range in {
-			node := x.Value().(*Node) // Assert type
+			node_ := x.Value().(*node.Node) // Assert type
 
 			// Add to wait group
 			wg.Add(1)
 
 			// Calculate hash using balancer
-			go func(n *Node) {
+			go func(n *node.Node) {
 				WorkQueue <- func() {
 					defer wg.Done() // Signal done
 
-					// Default hash value for files < 1024 if fast is true
-					hash := "0h"
-
-					// Little optimization to avoid calculating fast hash on small files
-					if !fast || n.Size > blockSize {
-						// Always calculate hash if fast == false or file size > blockSize
-						hash = n.calculateHash(fast) // Fast hash calculation - SHA1 of first 1024 bytes
-					}
-
-					// Don't process files for which we failed to calculate SHA1 hash
-					if hash == "" {
+					// Calculate hash using fast calculation if required
+					err := n.CalculateHash(fast) // Fast hash calculation - SHA1 of first 1024 bytes
+					if err != nil {
+						// Skip files for which we failed to calculate SHA1 hash
 						// log.Printf("WARN Unable calculate SHA1 hash for %q\n", node.Path)
 						return
 					}
 
 					out <- mapreduce.NewKVType(
-						mapreduce.KeyTypeFromString(hash),
+						mapreduce.KeyTypeFromString(n.Hash),
 						n,
 					)
 				}
-			}(node)
+			}(node_)
 		}
 		// Wait for all results be submitted
 		wg.Wait()
@@ -283,14 +278,14 @@ func makeFileHashMapFnFrom(in <-chan mapreduce.Value, fast bool) mapreduce.MapFn
 }
 
 func reduceByHash(out chan<- mapreduce.Value, in <-chan mapreduce.KeyValue) {
-	byHash := make(map[mapreduce.KeyType][]*Node)
+	byHash := make(map[mapreduce.KeyType][]*node.Node)
 
 	for x := range in {
 		hash := x.Key()
-		node := x.Value().(*Node) // Assert type
+		n := x.Value().(*node.Node) // Assert type
 
 		// Add hash value to a node
-		node.Hash = hash.String()
+		n.Hash = hash.String()
 
 		if v, ok := byHash[hash]; ok {
 			// Found node with the same SHA1 hash
@@ -299,10 +294,12 @@ func reduceByHash(out chan<- mapreduce.Value, in <-chan mapreduce.KeyValue) {
 				// First time we found duplicate, send first node too
 				out <- v[0]
 			}
-			byHash[hash] = append(v, node)
-			out <- node
+			// Add new node to a list
+			byHash[hash] = append(v, n)
+			// Send new node
+			out <- n
 		} else {
-			byHash[hash] = []*Node{node}
+			byHash[hash] = []*node.Node{n}
 		}
 	}
 }
