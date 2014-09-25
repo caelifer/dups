@@ -4,6 +4,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"path"
 	"path/filepath"
 	"sync"
 
@@ -95,7 +96,7 @@ func (w *walker) walkDir(node *node, err error, fn nodeFn) {
 
 			// Read all entries in current directory
 			for _, entry := range dirents {
-				path := node.path + string(os.PathSeparator) + entry.Name()
+				path := path.Join(node.path, entry.Name())
 
 				// Process node, ignore errors
 				w.walkNode(newNode(path, entry), nil, fn)
