@@ -9,6 +9,8 @@ import (
 	"os"
 )
 
+const blockSize = 4096 // Guestimate of a FS block-size for optimal read call
+
 // Node type
 type Node struct {
 	Path string // File path
@@ -19,8 +21,6 @@ type Node struct {
 func (n *Node) Value() interface{} {
 	return n
 }
-
-const blockSize = 1024 // Guestimate of a FS block-size for optimal read call
 
 // Calculate hash
 func (node *Node) calculateHash(fast bool) string {
@@ -40,8 +40,8 @@ func (node *Node) calculateHash(fast bool) string {
 		_, err = io.CopyN(hash, file, blockSize)
 
 	} else {
-		// Filesystem and memory optimal read
-		n, err = io.Copy(hash, file)
+		// Always read no more that the file size already determined
+		n, err = io.CopyN(hash, file, node.Size) // Optimal filesystem reads and memory use
 
 		// Paranoid sanity check
 		if n != node.Size {
@@ -59,4 +59,20 @@ func (node *Node) calculateHash(fast bool) string {
 
 	// Add hash value
 	return fmt.Sprintf("%0x", hash.Sum(nil))
+}
+
+// Dup type describes found duplicate file
+type Dup struct {
+	Node      // Embed Node type Go type "inheritance"
+	Count int // Number of identical copies for the hash
+}
+
+// Value implements mapreduce.Value interface
+func (d Dup) Value() interface{} {
+	return d
+}
+
+// Pretty printer
+func (d Dup) String() string {
+	return fmt.Sprintf("%s:%d:%d:%q", d.Hash, d.Count, d.Size, d.Path)
 }

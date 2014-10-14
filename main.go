@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"flag"
 	"fmt"
 	"log"
@@ -15,35 +16,22 @@ import (
 	"github.com/caelifer/dups/mapreduce"
 )
 
-// dup type describes found duplicate file
-type dup struct {
-	Count int    // Number of identical copies for the hash
-	Size  int64  // File size
-	Hash  string // Crypto signature
-	Path  string // Paths with matching signatures
-}
-
-// Value implements mapreduce.Value interface
-func (d dup) Value() interface{} {
-	return d
-}
-
-func (d dup) String() string {
-	return fmt.Sprintf("%s:%d:%d:%q", d.Hash, d.Count, d.Size, d.Path)
-}
-
 // Global stats for activity report
 var stats struct {
-	TotlalNodes      uint64
+	TotalDirs        uint64
+	TotalFiles       uint64
 	TotalCopies      uint64
 	TotalWastedSpace uint64
 }
 
+// Internal constant to control number of Worker threads in balancer's worker pool
+const workerPoolMultiplier = 2 // Use twice the available cores
+
 // Flags
 var (
 	cpuprofile      = flag.String("cpuprofile", "", "write cpu profile to file")
-	memprofile      = flag.String("memprofile", "", "write memory profile to this file")
-	maxWorkerNumber = flag.Int("jobs", runtime.NumCPU(), "Number of parallel jobs")
+	memprofile      = flag.String("memprofile", "", "write memory profile to file")
+	maxWorkerNumber = flag.Int("jobs", runtime.NumCPU()*workerPoolMultiplier, "Number of parallel jobs")
 )
 
 // Global pool manager interfaced via WorkQueue
@@ -105,8 +93,8 @@ func main() {
 	valChan = mapreduce.Reduce(keyValChan, reduceByHash)
 
 	// Final reduce before reporting
-	dups := make(chan dup)
-	go func(out chan<- dup) {
+	dups := make(chan Dup)
+	go func(out chan<- Dup) {
 		byHash := make(map[string][]*Node)
 
 		for x := range valChan {
@@ -122,7 +110,7 @@ func main() {
 		}
 
 		// Reduce
-		for hash, nodes := range byHash {
+		for _, nodes := range byHash {
 			count := len(nodes)
 			if count > 1 {
 				// Update free size stats
@@ -131,20 +119,25 @@ func main() {
 				for _, node := range nodes {
 					// Update dups number stats
 					atomic.AddUint64(&stats.TotalCopies, 1)
-					out <- dup{Count: count, Size: node.Size, Hash: hash, Path: node.Path}
+					out <- Dup{*node, count}
 				}
 			}
 		}
 		close(out)
 	}(dups)
 
+	// Buffer output
+	w := bufio.NewWriter(os.Stdout)
 	// Report
 	for d := range dups {
-		fmt.Println(d)
+		fmt.Fprintln(w, d)
 	}
+	// Flush any pending writes
+	w.Flush() // Ignore error
+
 	// Stats report
-	log.Printf("Examined %d files, found %d dups, total wasted space %.2fGB\n",
-		stats.TotlalNodes, stats.TotalCopies, float64(stats.TotalWastedSpace)/(1024*1024*1024))
+	log.Printf("Examined %d files in %d directories, found %d dups, total wasted space %.2fGB\n",
+		stats.TotalFiles, stats.TotalDirs, stats.TotalCopies, float64(stats.TotalWastedSpace)/(1024*1024*1024))
 }
 
 // makeNodeMapFnWithPaths
@@ -161,15 +154,28 @@ func makeNodeMapFnWithPaths(paths []string) mapreduce.MapFn {
 				}
 
 				// Only process simple files
-				if IsFile(info) {
+				if info.IsDir() {
+					// Increase seen directory counter
+					atomic.AddUint64(&stats.TotalDirs, 1)
+				}
+
+				// Only process simple files
+				if IsRegularFile(info) {
 					size := info.Size()
 					out <- mapreduce.NewKVType(
 						mapreduce.KeyTypeFromString(path),
 						&Node{Path: path, Size: size},
 					)
 					// Increase seen files counter
-					atomic.AddUint64(&stats.TotlalNodes, 1)
+					atomic.AddUint64(&stats.TotalFiles, 1)
 				}
+
+				//	// Log symlinks
+				//	if info.Mode()&os.ModeSymlink != 0 {
+				//	fpath := path + string(os.PathSeparator) + info.Name()
+				//		log.Println("DEBUG Found symlink", fpath)
+				//	}
+
 				return nil
 			})
 
@@ -253,7 +259,7 @@ func makeFileHashMapFnFrom(in <-chan mapreduce.Value, fast bool) mapreduce.MapFn
 					hash := "0h"
 
 					// Little optimization to avoid calculating fast hash on small files
-					if !fast || node.Size > blockSize {
+					if !fast || n.Size > blockSize {
 						// Always calculate hash if fast == false or file size > blockSize
 						hash = n.calculateHash(fast) // Fast hash calculation - SHA1 of first 1024 bytes
 					}
@@ -301,6 +307,6 @@ func reduceByHash(out chan<- mapreduce.Value, in <-chan mapreduce.KeyValue) {
 	}
 }
 
-func IsFile(fi os.FileInfo) bool {
+func IsRegularFile(fi os.FileInfo) bool {
 	return fi.Mode()&os.ModeType == 0
 }
