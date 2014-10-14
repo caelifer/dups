@@ -96,7 +96,7 @@ func main() {
 	keyValChan = mapreduce.Map(makeFileSizeMapFnFrom(valChan))
 	valChan = mapreduce.Reduce(keyValChan, reduceByFileSize)
 
-	// Map by fast SHA1 hash (first 1024 bytes)
+	// Map by fast SHA1 hash (first node.BlockSize bytes)
 	keyValChan = mapreduce.Map(makeFileHashMapFnFrom(valChan, true))
 	valChan = mapreduce.Reduce(keyValChan, reduceByHash)
 
