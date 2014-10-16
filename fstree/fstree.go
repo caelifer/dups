@@ -1,10 +1,10 @@
 package fstree
 
 import (
+	"bytes"
 	"io/ioutil"
 	"log"
 	"os"
-	"path"
 	"path/filepath"
 	"sync"
 
@@ -96,11 +96,26 @@ func (w *walker) walkDir(node *node, err error, fn nodeFn) {
 
 			// Read all entries in current directory
 			for _, entry := range dirents {
-				path := path.Join(node.path, entry.Name())
+				// path := node.path + string(os.PathSeparator) + entry.Name()
+
+				// Use custom fast string concatenation rutine
+				path := fastStringConcat(node.path, os.PathSeparator, entry.Name())
 
 				// Process node, ignore errors
 				w.walkNode(newNode(path, entry), nil, fn)
 			}
 		}
 	}()
+}
+
+// Little helper for specialized fast string / rune concatenation
+// Inspired by http://golang-examples.tumblr.com/post/86169510884/fastest-string-contatenation
+func fastStringConcat(first string, second rune, third string) string {
+	var res bytes.Buffer
+
+	res.WriteString(first)
+	res.WriteRune(second)
+	res.WriteString(third)
+
+	return res.String()
 }
