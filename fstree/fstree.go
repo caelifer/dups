@@ -1,7 +1,6 @@
 package fstree
 
 import (
-	"bytes"
 	"io/ioutil"
 	"log"
 	"os"
@@ -110,12 +109,10 @@ func (w *walker) walkDir(node *node, err error, fn nodeFn) {
 
 // Little helper for specialized fast string / rune concatenation
 // Inspired by http://golang-examples.tumblr.com/post/86169510884/fastest-string-contatenation
-func fastStringConcat(first string, second rune, third string) string {
-	var res bytes.Buffer
-
-	res.WriteString(first)
-	res.WriteRune(second)
-	res.WriteString(third)
-
-	return res.String()
+func fastStringConcat(first string, second byte, third string) string {
+	res := make([]byte, 0, len(first)+1+len(third))
+	res = append(res, []byte(first)...)
+	res = append(res, second)
+	res = append(res, []byte(third)...)
+	return string(res)
 }

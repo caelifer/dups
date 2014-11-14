@@ -93,7 +93,7 @@ func hashToString(bts []byte) string {
 
 // Dup type describes found duplicate file
 type Dup struct {
-	Node      // Embed Node type Go type "inheritance"
+	*Node     // Embed Node type Go type "inheritance"
 	Count int // Number of identical copies for the hash
 }
 

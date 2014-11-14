@@ -147,7 +147,7 @@ func reportReduceDups() mapreduce.ReduceFn {
 				for _, n := range nodes {
 					// Update dups number stats
 					atomic.AddUint64(&stats.TotalCopies, 1)
-					out <- node.Dup{*n, count}
+					out <- node.Dup{n, count}
 				}
 			}
 		}
