@@ -4,14 +4,14 @@ package mapreduce
 
 // MapFn provided by the client code. It is responsible to perform actual work
 // and send it to the out channel as KeyValue tuple.
-type MapFn func(out chan<- KeyValue)
+type MapFn func(out chan<- KeyValue, in <-chan Value)
 
 // Map run provided Key/Value generator in a separate go-routine. It returns channel of
 // KeyValue values.
-func Map(mapFn MapFn) <-chan KeyValue {
+func Map(in <-chan Value, mapFn MapFn) <-chan KeyValue {
 	out := make(chan KeyValue)
 	go func() {
-		mapFn(out)
+		mapFn(out, in)
 		close(out) // always clean-up
 	}()
 	return out
@@ -30,5 +30,21 @@ func Reduce(in <-chan KeyValue, reduceFn ReduceFn) <-chan Value {
 		reduceFn(out, in)
 		close(out) // always clean-up
 	}()
+	return out
+}
+
+// MapReducePair is a necessary type for pipeline builder
+type MapReducePair struct {
+	Map    MapFn
+	Reduce ReduceFn
+}
+
+// Pipeline builds a pipeline by chaining together provided Map/Reducer pairs.
+// It returns a <-chan of Value.
+func Pipeline(mrps ...MapReducePair) <-chan Value {
+	var out <-chan Value
+	for _, mrp := range mrps {
+		out = Reduce(Map(out, mrp.Map), mrp.Reduce)
+	}
 	return out
 }
