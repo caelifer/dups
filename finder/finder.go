@@ -56,27 +56,27 @@ func (f *Finder) AllDups(paths []string) <-chan mapreduce.Value {
 	return mapreduce.Pipeline(
 		[]mapreduce.MapReducePair{
 			{
-				makeNodeMap(f, paths),
-				reduceByFileName(f),
+				f.makeNodeMap(paths),
+				f.reduceByFileName(),
 			}, {
-				makeFileSizeMap(f),
-				reduceByFileSize(f),
+				f.makeFileSizeMap(),
+				f.reduceByFileSize(),
 			}, {
-				makeFileHashMap(f, true),
-				reduceByHash(f),
+				f.makeFileHashMap(true),
+				f.reduceByHash(),
 			}, {
-				makeFileHashMap(f, false),
-				reduceByHash(f),
+				f.makeFileHashMap(false),
+				f.reduceByHash(),
 			}, {
-				reportMapDups(f),
-				reportReduceDups(f),
+				f.reportMapDups(),
+				f.reportReduceDups(),
 			},
 		}...,
 	)
 }
 
 // makeNodeMap
-func makeNodeMap(f *Finder, paths []string) mapreduce.MapFn {
+func (f *Finder) makeNodeMap(paths []string) mapreduce.MapFn {
 	return func(out chan<- mapreduce.KeyValue, _ <-chan mapreduce.Value) {
 		// Process all command line paths
 		for _, path_ := range paths {
@@ -116,7 +116,7 @@ func makeNodeMap(f *Finder, paths []string) mapreduce.MapFn {
 }
 
 // reduceByFileName custom function remove nodes with duplicate paths
-func reduceByFileName(*Finder) mapreduce.ReduceFn {
+func (f *Finder) reduceByFileName() mapreduce.ReduceFn {
 	return func(out chan<- mapreduce.Value, in <-chan mapreduce.KeyValue) {
 		byName := make(map[mapreduce.KeyType]*node.Node)
 
@@ -134,7 +134,7 @@ func reduceByFileName(*Finder) mapreduce.ReduceFn {
 }
 
 // Very simple function to map nodes by size
-func makeFileSizeMap(*Finder) mapreduce.MapFn {
+func (*Finder) makeFileSizeMap() mapreduce.MapFn {
 	return func(out chan<- mapreduce.KeyValue, in <-chan mapreduce.Value) {
 		for x := range in {
 			node := x.Value().(*node.Node) // Assert type
@@ -148,7 +148,7 @@ func makeFileSizeMap(*Finder) mapreduce.MapFn {
 }
 
 // reduceByFileSize custom function to filter files by size
-func reduceByFileSize(*Finder) mapreduce.ReduceFn {
+func (*Finder) reduceByFileSize() mapreduce.ReduceFn {
 	return func(out chan<- mapreduce.Value, in <-chan mapreduce.KeyValue) {
 		bySize := make(map[mapreduce.KeyType][]*node.Node)
 
@@ -175,7 +175,7 @@ func reduceByFileSize(*Finder) mapreduce.ReduceFn {
 	}
 }
 
-func makeFileHashMap(f *Finder, fast bool) mapreduce.MapFn {
+func (f *Finder) makeFileHashMap(fast bool) mapreduce.MapFn {
 	return func(out chan<- mapreduce.KeyValue, in <-chan mapreduce.Value) {
 		var wg sync.WaitGroup
 		for x := range in {
@@ -209,7 +209,7 @@ func makeFileHashMap(f *Finder, fast bool) mapreduce.MapFn {
 	}
 }
 
-func reduceByHash(*Finder) mapreduce.ReduceFn {
+func (*Finder) reduceByHash() mapreduce.ReduceFn {
 	return func(out chan<- mapreduce.Value, in <-chan mapreduce.KeyValue) {
 		byHash := make(map[mapreduce.KeyType][]*node.Node)
 
@@ -239,7 +239,7 @@ func reduceByHash(*Finder) mapreduce.ReduceFn {
 }
 
 // fanal map
-func reportMapDups(*Finder) mapreduce.MapFn {
+func (*Finder) reportMapDups() mapreduce.MapFn {
 	return func(out chan<- mapreduce.KeyValue, in <-chan mapreduce.Value) {
 		for x := range in {
 			n := x.Value().(*node.Node) // Type assert
@@ -253,7 +253,7 @@ func reportMapDups(*Finder) mapreduce.MapFn {
 }
 
 // final reduce
-func reportReduceDups(f *Finder) mapreduce.ReduceFn {
+func (f *Finder) reportReduceDups() mapreduce.ReduceFn {
 	return func(out chan<- mapreduce.Value, in <-chan mapreduce.KeyValue) {
 		byHash := make(map[string][]*node.Node)
 
