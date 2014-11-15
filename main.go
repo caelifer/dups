@@ -21,8 +21,8 @@ var (
 	cpuprofile      = flag.String("cpuprofile", "", "write cpu profile to file")
 	memprofile      = flag.String("memprofile", "", "write memory profile to file")
 	maxWorkerNumber = flag.Int("jobs", runtime.NumCPU()*workerPoolMultiplier, "Number of parallel jobs")
-	output          = flag.String("output", "os.Stdout", "write output to a file")
-	stats           = flag.Bool("stats", false, "display runtime statistics on os.Stderr")
+	output          = flag.String("output", "-", "write output to a file. Default: STDOUT")
+	stats           = flag.Bool("stats", false, "display runtime statistics on STDERR")
 )
 
 // Global pool manager interfaced via WorkQueue
@@ -83,10 +83,9 @@ func main() {
 
 func getOutput(path string) (io.WriteCloser, error) {
 	switch path {
-	case "os.Stdout", "-":
+	case "-":
 		return os.Stdout, nil // default
 	default:
 		return os.OpenFile(*output, os.O_TRUNC|os.O_CREATE|os.O_WRONLY, 0666)
 	}
-
 }
