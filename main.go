@@ -8,6 +8,7 @@ import (
 	"os"
 	"runtime"
 	"runtime/pprof"
+	"time"
 
 	"github.com/caelifer/dups/balancer"
 	"github.com/caelifer/dups/finder"
@@ -70,11 +71,17 @@ func main() {
 	}
 	defer outfile.Close()
 
+	// Trace time spent
+	t1 := time.Now()
+
 	// Find all dups and report to output
 	find := finder.NewFinder(*maxWorkerNumber)
 	for d := range find.AllDups(paths) {
 		fmt.Fprintln(outfile, d)
 	}
+
+	// Update stats
+	find.SetTimeSpent(time.Since(t1))
 
 	if *stats {
 		log.Println(find.Stats())

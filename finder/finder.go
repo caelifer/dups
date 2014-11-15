@@ -6,6 +6,7 @@ import (
 	"os"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/caelifer/dups/balancer"
 	"github.com/caelifer/dups/fstree"
@@ -39,16 +40,21 @@ type Finder struct {
 	totalFiles       uint64
 	totalCopies      uint64
 	totalWastedSpace uint64
+	totalTime        time.Duration
 }
 
 func NewFinder(nworkers int) *Finder {
 	return &Finder{workQueue: balancer.NewWorkQueue(nworkers)}
 }
 
+func (f *Finder) SetTimeSpent(d time.Duration) {
+	f.totalTime = d
+}
+
 func (f Finder) Stats() string {
 	// Stats report
-	return fmt.Sprintf("Examined %d files in %d directories, found %d dups, total wasted space %.2fGB",
-		f.totalFiles, f.totalDirs, f.totalCopies, float64(f.totalWastedSpace)/(1024*1024*1024))
+	return fmt.Sprintf("Examined %d files in %d directories [%s], found %d dups, total wasted space %.2fGB",
+		f.totalFiles, f.totalDirs, f.totalTime, f.totalCopies, float64(f.totalWastedSpace)/(1024*1024*1024))
 }
 
 func (f *Finder) AllDups(paths []string) <-chan mapreduce.Value {
