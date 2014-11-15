@@ -33,7 +33,7 @@ func (d Dup) String() string {
 // Finder
 type Finder struct {
 	// Work Queue
-	workQueue chan<- balancer.Request
+	workQueue balancer.WorkQueue
 
 	// Stats
 	totalDirs        uint64

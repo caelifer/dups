@@ -10,6 +10,8 @@ type Balancer struct {
 	done chan *Worker
 }
 
+type WorkQueue chan<- Request
+
 // New() creates and initializes new Balancer object using provide channel of Requests as a work queue.
 // It returns pointer to the newly creatd object. As a part of the implementation, this method creates
 // a pool of workers and start each of them in a separate gorutine. Once the worker pool is operational,
@@ -57,7 +59,7 @@ func NewWorkQueue(nWorkers int) chan<- Request {
 		}
 	}(workQueue)
 
-	return workQueue
+	return WorkQueue(workQueue)
 }
 
 // String() pretty prints Balancer object state

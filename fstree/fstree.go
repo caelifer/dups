@@ -16,7 +16,7 @@ import (
 type nodeFn func(path string, info os.FileInfo, err error) error
 
 // Primary interface - matches signature of filepath.Walk()
-func Walk(workQueue chan<- balancer.Request, path string, fn nodeFn) error {
+func Walk(workQueue balancer.WorkQueue, path string, fn nodeFn) error {
 	// Create walker object
 	w := newWalker(workQueue, path)
 
@@ -46,11 +46,11 @@ func newNode(path string, info os.FileInfo) *node {
 
 type walker struct {
 	root      string
-	workQueue chan<- balancer.Request
+	workQueue balancer.WorkQueue
 	wg        sync.WaitGroup
 }
 
-func newWalker(workQueue chan<- balancer.Request, root string) *walker {
+func newWalker(workQueue balancer.WorkQueue, root string) *walker {
 	return &walker{
 		root:      root,
 		workQueue: workQueue,
