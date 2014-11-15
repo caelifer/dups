@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"runtime"
@@ -32,6 +33,7 @@ var (
 	cpuprofile      = flag.String("cpuprofile", "", "write cpu profile to file")
 	memprofile      = flag.String("memprofile", "", "write memory profile to file")
 	maxWorkerNumber = flag.Int("jobs", runtime.NumCPU()*workerPoolMultiplier, "Number of parallel jobs")
+	output          = flag.String("output", "os.Stdout", "write output to a file")
 )
 
 // Global pool manager interfaced via WorkQueue
@@ -94,16 +96,31 @@ func main() {
 		}...,
 	)
 
-	// Final reduce before reporting
+	// Get output writer
+	outfile, err := getOutput(*output)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer outfile.Close()
 
 	// Report to os.Stdout
 	for d := range dups {
-		fmt.Fprintln(os.Stdout, d)
+		fmt.Fprintln(outfile, d)
 	}
 
 	// Stats report
 	log.Printf("Examined %d files in %d directories, found %d dups, total wasted space %.2fGB\n",
 		stats.TotalFiles, stats.TotalDirs, stats.TotalCopies, float64(stats.TotalWastedSpace)/(1024*1024*1024))
+}
+
+func getOutput(path string) (io.WriteCloser, error) {
+	switch path {
+	case "os.Stdout", "-":
+		return os.Stdout, nil // default
+	default:
+		return os.OpenFile(*output, os.O_TRUNC|os.O_CREATE|os.O_WRONLY, 0666)
+	}
+
 }
 
 // fanal map
