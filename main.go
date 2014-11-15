@@ -10,7 +10,6 @@ import (
 	"runtime/pprof"
 	"time"
 
-	"github.com/caelifer/dups/balancer"
 	"github.com/caelifer/dups/finder"
 )
 
@@ -26,9 +25,7 @@ var (
 	stats           = flag.Bool("stats", false, "display runtime statistics on STDERR")
 )
 
-// Global pool manager interfaced via WorkQueue
-var WorkQueue = balancer.NewWorkQueue(*maxWorkerNumber)
-
+// Start of execution
 func main() {
 	// First parse flags
 	flag.Parse()
