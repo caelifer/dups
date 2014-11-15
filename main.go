@@ -22,6 +22,7 @@ var (
 	memprofile      = flag.String("memprofile", "", "write memory profile to file")
 	maxWorkerNumber = flag.Int("jobs", runtime.NumCPU()*workerPoolMultiplier, "Number of parallel jobs")
 	output          = flag.String("output", "os.Stdout", "write output to a file")
+	stats           = flag.Bool("stats", false, "display runtime statistics on os.Stderr")
 )
 
 // Global pool manager interfaced via WorkQueue
@@ -73,6 +74,10 @@ func main() {
 	find := finder.NewFinder(*maxWorkerNumber)
 	for d := range find.AllDups(paths) {
 		fmt.Fprintln(outfile, d)
+	}
+
+	if *stats {
+		log.Println(find.Stats())
 	}
 }
 

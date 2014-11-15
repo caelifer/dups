@@ -45,9 +45,9 @@ func NewFinder(nworkers int) *Finder {
 	return &Finder{workQueue: balancer.NewWorkQueue(nworkers)}
 }
 
-func (f Finder) ReportStats() string {
+func (f Finder) Stats() string {
 	// Stats report
-	return fmt.Sprintf("Examined %d files in %d directories, found %d dups, total wasted space %.2fGB\n",
+	return fmt.Sprintf("Examined %d files in %d directories, found %d dups, total wasted space %.2fGB",
 		f.totalFiles, f.totalDirs, f.totalCopies, float64(f.totalWastedSpace)/(1024*1024*1024))
 }
 
