@@ -3,7 +3,6 @@ package node
 import (
 	"crypto/sha1"
 	"errors"
-	"fmt"
 	"io"
 	"log"
 	"os"
@@ -18,7 +17,6 @@ type Node struct {
 	Hash string // String form of SHA1 hash
 }
 
-// Implement mapreduce Value interface
 func (n *Node) Value() interface{} {
 	return n
 }
@@ -89,20 +87,4 @@ func hashToString(bts []byte) string {
 		res[i*2], res[i*2+1] = byteToHex(b)
 	}
 	return string(res)
-}
-
-// Dup type describes found duplicate file
-type Dup struct {
-	*Node     // Embed Node type Go type "inheritance"
-	Count int // Number of identical copies for the hash
-}
-
-// Value implements mapreduce.Value interface
-func (d Dup) Value() interface{} {
-	return d
-}
-
-// Pretty printer for the report
-func (d Dup) String() string {
-	return fmt.Sprintf("%s:%d:%d:%q", d.Hash, d.Count, d.Size, d.Path)
 }
