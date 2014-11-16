@@ -39,10 +39,10 @@ func NewWorkQueue(nWorkers int) chan<- Request {
 	// log.Printf("Complete balancer construction: %s\n", b)
 
 	// Run balancer
-	go func(workQueue chan Request) {
+	go func(wq <-chan Request) {
 		for {
 			select {
-			case req := <-workQueue:
+			case req := <-wq:
 				for {
 					err := b.dispatch(req)
 					if err == nil {
