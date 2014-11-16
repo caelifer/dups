@@ -62,11 +62,11 @@ func main() {
 	}
 
 	// Get output writer
-	outfile, err := getOutput(*output)
+	out, err := getOutput(*output)
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer outfile.Close()
+	defer out.Close()
 
 	// Trace time spent
 	t1 := time.Now()
@@ -74,7 +74,7 @@ func main() {
 	// Find all dups and report to output
 	find := finder.NewFinder(*maxWorkerNumber)
 	for d := range find.AllDups(paths) {
-		fmt.Fprintln(outfile, d)
+		fmt.Fprintln(out, d)
 	}
 
 	// Update stats
@@ -90,6 +90,6 @@ func getOutput(path string) (io.WriteCloser, error) {
 	case "-":
 		return os.Stdout, nil // default
 	default:
-		return os.OpenFile(*output, os.O_TRUNC|os.O_CREATE|os.O_WRONLY, 0666)
+		return os.OpenFile(*output, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0666)
 	}
 }
