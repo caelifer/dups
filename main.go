@@ -18,11 +18,11 @@ const workerPoolMultiplier = 2 // Use twice the available cores
 
 // Flags
 var (
-	cpuprofile      = flag.String("cpuprofile", "", "write cpu profile to file")
-	memprofile      = flag.String("memprofile", "", "write memory profile to file")
-	maxWorkerNumber = flag.Int("jobs", runtime.NumCPU()*workerPoolMultiplier, "Number of parallel jobs")
-	output          = flag.String("output", "-", "write output to a file. Default: STDOUT")
-	stats           = flag.Bool("stats", false, "display runtime statistics on STDERR")
+	cpuprofile  = flag.String("cpuprofile", "", "write cpu profile to file")
+	memprofile  = flag.String("memprofile", "", "write memory profile to file")
+	workerCount = flag.Int("jobs", runtime.NumCPU()*workerPoolMultiplier, "Number of parallel jobs")
+	output      = flag.String("output", "-", "write output to a file. Default: STDOUT")
+	stats       = flag.Bool("stats", false, "display runtime statistics on STDERR")
 )
 
 // Start of execution
@@ -30,9 +30,10 @@ func main() {
 	// First parse flags
 	flag.Parse()
 
-	// Prep runtime to use the maxWorkerNumber real threads
-	runtime.GOMAXPROCS(*maxWorkerNumber)
+	// Prep runtime to use the workerCount real threads
+	runtime.GOMAXPROCS(*workerCount)
 
+	// CPU profile
 	if *cpuprofile != "" {
 		f, err := os.Create(*cpuprofile)
 		if err != nil {
@@ -42,6 +43,7 @@ func main() {
 		defer pprof.StopCPUProfile()
 	}
 
+	// Memory profile
 	if *memprofile != "" {
 		f, err := os.Create(*memprofile)
 		if err != nil {
@@ -55,7 +57,6 @@ func main() {
 
 	// Process command line params
 	paths := flag.Args()
-
 	if len(paths) == 0 {
 		// Default is current directory
 		paths = []string{"."}
@@ -72,7 +73,7 @@ func main() {
 	t1 := time.Now()
 
 	// Find all dups and report to output
-	find := finder.NewFinder(*maxWorkerNumber)
+	find := finder.NewFinder(*workerCount)
 	for d := range find.AllDups(paths) {
 		fmt.Fprintln(out, d)
 	}
@@ -80,11 +81,13 @@ func main() {
 	// Update stats
 	find.SetTimeSpent(time.Since(t1))
 
+	// Display runtime stats if requested
 	if *stats {
 		log.Println(find.Stats())
 	}
 }
 
+// Get output handle
 func getOutput(path string) (io.WriteCloser, error) {
 	switch path {
 	case "-":
