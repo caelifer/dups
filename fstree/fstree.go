@@ -15,7 +15,7 @@ import (
 // Heler type - matches parameter signature of filepath.Walk()
 type nodeFn func(path string, info os.FileInfo, err error) error
 
-// Primary interface - matches signature of filepath.Walk()
+// Walk is a primary interface to this package. It matches signature of filepath.Walk().
 func Walk(workQueue balancer.WorkQueue, path string, fn nodeFn) error {
 	// Create walker object
 	w := newWalker(workQueue, path)
