@@ -8,7 +8,7 @@ import (
 	"os"
 )
 
-const BlockSize = 4096 // Guestimate of a FS block-size for optimal read call
+const blockSize = 4096 // Guestimate of a FS block-size for optimal read call
 
 // Node type
 type Node struct {
@@ -22,12 +22,12 @@ func (n *Node) Value() interface{} {
 }
 
 // Calculate hash
-func (node *Node) CalculateHash(fast bool) error {
-	readSize := node.Size // by default, read the entire file
+func (n *Node) CalculateHash(fast bool) error {
+	readSize := n.Size // by default, read the entire file
 
 	if fast {
-		if node.Size > BlockSize {
-			readSize = BlockSize // Limit number of read bytes to BlockSize on fast pass
+		if n.Size > blockSize {
+			readSize = blockSize // Limit number of read bytes to BlockSize on fast pass
 		} else {
 			// Skip small file on a "fast" pass
 			return nil
@@ -35,7 +35,7 @@ func (node *Node) CalculateHash(fast bool) error {
 	}
 
 	// Open file
-	file, err := os.Open(node.Path)
+	file, err := os.Open(n.Path)
 	if err != nil {
 		log.Println("WARN", err)
 		return err
@@ -43,26 +43,26 @@ func (node *Node) CalculateHash(fast bool) error {
 	// Never forget to close it
 	defer file.Close()
 
-	var n int64 // bytes read
+	var nbytes int64 // bytes read
 	hash := sha1.New()
 
 	// Always read no more that the file size already determined
-	n, err = io.CopyN(hash, file, readSize) // Use io.CopyN() for optimal filesystem and memory use
+	nbytes, err = io.CopyN(hash, file, readSize) // Use io.CopyN() for optimal filesystem and memory use
 	if err != nil {
 		log.Println("WARN", err)
 		return err
 	}
 
 	// Paranoid sanity check
-	if n != readSize {
-		err = errors.New("Partial read: " + node.Path)
+	if nbytes != readSize {
+		err = errors.New("Partial read: " + n.Path)
 		log.Println("WARN", err)
 		return err
 	}
 
 	// Add hash value
 	// node.Hash = fmt.Sprintf("%0x", hash.Sum(nil))
-	node.Hash = hashToString(hash.Sum(nil))
+	n.Hash = hashToString(hash.Sum(nil))
 	return nil
 }
 
