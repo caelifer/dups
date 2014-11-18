@@ -92,6 +92,8 @@ func getOutput(path string) (io.WriteCloser, error) {
 	switch path {
 	case "-":
 		return os.Stdout, nil // default
+	case "/dev/null":
+		return os.OpenFile(os.DevNull, os.O_CREATE|os.O_WRONLY, 0666)
 	default:
 		return os.OpenFile(*output, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0666)
 	}
