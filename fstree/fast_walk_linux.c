@@ -19,6 +19,9 @@
 static struct dirent *createNode(const char *path);
 static int dots(const char *name);
 
+static int NodeCounter = 0;
+static int DirCounter = 0;
+
 /*
 * Implementation
 */
@@ -66,6 +69,8 @@ void WalkTree(const char *path, DIR *dir, CallBack cb) {
 void WalkNode(const char *path, struct dirent *node, CallBack cb) {
 	int needFree = 0;
 
+	NodeCounter++; // Increment node count
+
 	// If node is NULL, populate node
 	if (node == NULL) {
 		if ((node = createNode(path)) == NULL) {
@@ -95,6 +100,8 @@ void WalkNode(const char *path, struct dirent *node, CallBack cb) {
 
 		// Always close open directory
 		closedir(dir);
+
+		DirCounter++; // Increment directory count
 	}
 
 	if (needFree) {
@@ -170,5 +177,7 @@ int main(int argc, char *argv[]) {
 			WalkNode(*(++argv), NULL, printNode);
 		}
 	}
+
+	fprintf(stderr, "\nTotal: %d nodes, %d directories, %d otheres\n", NodeCounter, DirCounter, NodeCounter - DirCounter);
 }
 #endif
