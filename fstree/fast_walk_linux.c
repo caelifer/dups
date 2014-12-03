@@ -44,7 +44,7 @@ void WalkTree(const char *path, DIR *dir, CallBack cb) {
 		}
 
 		// Finally build new path
-		sprintf(newPath, "%s/%s", path, node.d_name);
+		sprintf(newPath, "%s/%s", strcmp(path, "/") == 0 ? "" : path, node.d_name);
 
 		// Walk each node
 		WalkNode(newPath, &node, cb);
