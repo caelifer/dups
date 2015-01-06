@@ -58,6 +58,10 @@ func newWalker(workQueue balancer.WorkQueue, root string) *walker {
 }
 
 func (w *walker) walkNode(node *node, err error, fn nodeFn) error {
+	// Make sure we are not finished until all recursive calls are done
+	w.wg.Add(1)
+	defer w.wg.Done()
+
 	// Process node by calling client function
 	err = fn(node.path, node.info, err)
 
@@ -107,7 +111,7 @@ func (w *walker) walkDir(node *node, err error, fn nodeFn) {
 	}()
 }
 
-// Little helper for specialized fast string / rune concatenation
+// Little helper for specialized fast string + byte + string concatenation
 // Inspired by http://golang-examples.tumblr.com/post/86169510884/fastest-string-contatenation
 func fastStringConcat(first string, second byte, third string) string {
 	res := make([]byte, 0, len(first)+1+len(third))
