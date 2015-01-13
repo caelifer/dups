@@ -44,10 +44,9 @@ func (p *Pool) Push(x interface{}) {
 }
 
 func (p *Pool) Pop() interface{} {
-	old := *p
-	n := len(old) - 1
-	x := old[n]
+	n := len(*p) - 1
+	x := (*p)[n]
 	x.index = -1 // for safety
-	*p = old[0:n]
+	*p = (*p)[0:n]
 	return x
 }
