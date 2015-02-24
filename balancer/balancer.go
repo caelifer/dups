@@ -47,7 +47,7 @@ func NewWorkQueue(nWorkers int) chan<- Request {
 					err := b.dispatch(req)
 					if err != nil {
 						// We reached capacity, clean-up first
-						// log.Println("Blocking on", err)
+						log.Println("Reached capacity - unable to dispatch.", err)
 						b.completed(<-b.done)
 					} else {
 						break
@@ -72,17 +72,17 @@ func (b Balancer) String() string {
 func (b *Balancer) dispatch(r Request) (err error) {
 	// Get least loaded worker
 	w := heap.Pop(b.pool).(*Worker)
+	defer heap.Push(b.pool, w) // Always put back before we return
 
 	// Send it the task
 	err = w.Enqueue(r) // will never block
-	if err == nil {
-		// Update count
-		w.pending++
+	if err != nil {
+		return
 	}
-	// Put it back to the heap
-	heap.Push(b.pool, w)
 
-	return err
+	// Update count
+	w.pending++
+	return
 }
 
 // Update worker stats after job was completed
