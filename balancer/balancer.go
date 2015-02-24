@@ -3,20 +3,21 @@ package balancer
 import (
 	"container/heap"
 	"fmt"
+	"log"
 )
 
 type Balancer struct {
 	pool *Pool
-	done chan *Worker
+	done chan Worker
 }
 
 type WorkQueue chan<- Request
 
-// New() creates and initializes new Balancer object using provide channel of Requests as a work queue.
+// NewWorkQueue creates and initializes new Balancer object using provide channel of Requests as a work queue.
 // It returns pointer to the newly creatd object. As a part of the implementation, this method creates
 // a pool of workers and start each of them in a separate gorutine. Once the worker pool is operational,
 // it sets up a job dispatcher also running in its own goroutine.
-func NewWorkQueue(nWorkers int) chan<- Request {
+func NewWorkQueue(nWorkers int) WorkQueue {
 	// Create new pool memory structure
 	pool := NewPool(nWorkers)
 
@@ -26,7 +27,7 @@ func NewWorkQueue(nWorkers int) chan<- Request {
 	// Balancer
 	b := &Balancer{
 		pool: &pool,
-		done: make(chan *Worker),
+		done: make(chan Worker),
 	}
 
 	// Create all workers
@@ -38,25 +39,57 @@ func NewWorkQueue(nWorkers int) chan<- Request {
 
 	// log.Printf("Complete balancer construction: %s\n", b)
 
+	//	go func() {
+	//		for {
+	//			log.Printf("Load: %s\n", b)
+	//			time.Sleep(time.Millisecond * 100)
+	//		}
+	//	}()
+
 	// Run balancer
 	go func(wq <-chan Request) {
 		for {
+
 			select {
-			case req := <-wq:
-				for {
-					err := b.dispatch(req)
-					if err != nil {
-						// We reached capacity, clean-up first
-						log.Println("Reached capacity - unable to dispatch.", err)
-						b.completed(<-b.done)
-					} else {
-						break
-					}
-				}
+			// Make sure we have capacity first
 			case w := <-b.done:
 				b.completed(w)
+				// log.Printf("Completed for %s", w)
+
+			default:
+				// ... then check if we have more work
+				select {
+				case req, ok := <-wq:
+					if ok {
+						for {
+							err := b.dispatch(req)
+							if err != nil {
+								// log.Printf("Unable to dispatch because of %q; blocking...", err)
+
+								// Non-blocking busy wait
+								select {
+								// We reached capacity, clean-up first
+								case w := <-b.done:
+									// log.Printf("Got worker done %s", w)
+									b.completed(w)
+									// ... and try to reschedule the received request
+
+									// log.Println("Got capacity - retrying dispatch...")
+								default:
+									// log.Println("Busy wait")
+								}
+							} else {
+								break
+							}
+						}
+					} else {
+						log.Printf("Request queue is closed. Done")
+						return
+					}
+				default:
+					break
+				}
 			}
-			// log.Printf("Load: %s\n", b)
 		}
 	}(workQueue)
 
@@ -71,25 +104,19 @@ func (b Balancer) String() string {
 // Assign new work to the least-loaded worker
 func (b *Balancer) dispatch(r Request) (err error) {
 	// Get least loaded worker
-	w := heap.Pop(b.pool).(*Worker)
+	w := heap.Pop(b.pool).(Worker)
 	defer heap.Push(b.pool, w) // Always put back before we return
 
 	// Send it the task
 	err = w.Enqueue(r) // will never block
-	if err != nil {
-		return
-	}
 
-	// Update count
-	w.pending++
 	return
 }
 
 // Update worker stats after job was completed
-func (b *Balancer) completed(w *Worker) {
-	w.pending-- // Reduce pending work counter
+func (b *Balancer) completed(w Worker) {
 	// Remove from the heap
-	heap.Remove(b.pool, w.index)
+	heap.Remove(b.pool, w.Index())
 	// Put it back at the right position
 	heap.Push(b.pool, w)
 }

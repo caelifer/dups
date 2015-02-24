@@ -84,31 +84,31 @@ func (w *walker) walkDir(node *node, err error, fn nodeFn) {
 	w.wg.Add(1)
 
 	// Send to be processed in the workpool
-	go func() {
-		w.workQueue <- func() {
-			defer w.wg.Done() // Signal done at the end of the function
+	// log.Printf("Scheduling async walk of %s", node.path)
+	w.workQueue <- func() {
+		defer w.wg.Done() // Signal done at the end of the function
 
-			// Read directory entries
-			dirents, err := ioutil.ReadDir(node.path)
-			if err != nil {
-				log.Println("WARN", err)
+		// Read directory entries
+		dirents, err := ioutil.ReadDir(node.path)
+		if err != nil {
+			log.Println("WARN", err)
 
-				// erly termination if we cannot read directory
-				return
-			}
-
-			// Read all entries in current directory
-			for _, entry := range dirents {
-				// path := node.path + string(os.PathSeparator) + entry.Name()
-
-				// Use custom fast string concatenation rutine
-				path := fastStringConcat(node.path, os.PathSeparator, entry.Name())
-
-				// Process node, ignore errors
-				w.walkNode(newNode(path, entry), nil, fn)
-			}
+			// early termination if we cannot read directory
+			return
 		}
-	}()
+
+		// Read all entries in current directory
+		for _, entry := range dirents {
+			// path := node.path + string(os.PathSeparator) + entry.Name()
+
+			// Use custom fast string concatenation rutine
+			path := fastStringConcat(node.path, os.PathSeparator, entry.Name())
+
+			// Process node, ignore errors
+			w.walkNode(newNode(path, entry), nil, fn)
+		}
+	}
+	// log.Println("Done scheduling")
 }
 
 // Little helper for specialized fast string + byte + string concatenation

@@ -1,41 +1,77 @@
 package balancer
 
-import "errors"
+import (
+	"errors"
+	"fmt"
+	"sync"
+)
+
+const maxWorkQueueDepth = 200
 
 type Request func()
 
-type Worker struct {
-	reqs    chan Request
-	pending int // managed by the balancer.Balancer
-	index   int // heap index
+// Worker interface specification
+type Worker interface {
+	Enqueue(Request) error
+	QueueSize() int
+	Run(chan<- Worker)
+	Index() int
+	SetIndex(int)
 }
 
-const maxWorkQueueDepth = 10
+type worker struct {
+	reqs chan Request
 
-func NewWorker() *Worker {
-	return &Worker{
+	il    sync.RWMutex
+	index int
+}
+
+func NewWorker() Worker {
+	return &worker{
 		reqs: make(chan Request, maxWorkQueueDepth),
 	}
 }
 
-func (w *Worker) Enqueue(r Request) error {
+func (w *worker) String() string {
+	idx := w.Index()
+	pnd := w.QueueSize()
+	return fmt.Sprintf("Worker (%p) { Index: %d; Pending: %d }", w, idx, pnd)
+}
+
+func (w *worker) Enqueue(r Request) error {
 	// Add Request to the queue
 	select {
 	case w.reqs <- r:
+		// log.Printf("Enqueued work for %s", w)
+
 		return nil
 	default:
 		return errors.New("job queue capacity limit")
 	}
 }
 
-func (w Worker) QueueSize() int {
-	return w.pending
+func (w *worker) QueueSize() int {
+	return len(w.reqs)
 }
 
-func (w *Worker) Run(done chan *Worker) {
+func (w *worker) Run(done chan<- Worker) {
 	for {
-		req := <-w.reqs
-		req() // run job
+		(<-w.reqs)() // run job
+		// log.Printf("Done with job for %s", w)
 		done <- w
 	}
+}
+
+func (w *worker) Index() int {
+	w.il.RLock()
+	idx := w.index
+	w.il.RUnlock()
+
+	return idx
+}
+
+func (w *worker) SetIndex(idx int) {
+	w.il.Lock()
+	w.index = idx
+	w.il.Unlock()
 }
