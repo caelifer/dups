@@ -45,12 +45,13 @@ func NewWorkQueue(nWorkers int) chan<- Request {
 			case req := <-wq:
 				for {
 					err := b.dispatch(req)
-					if err == nil {
+					if err != nil {
+						// We reached capacity, clean-up first
+						// log.Println("Blocking on", err)
+						b.completed(<-b.done)
+					} else {
 						break
 					}
-					// We reached capacity, clean-up first
-					// log.Println("Blocking on", err)
-					b.completed(<-b.done)
 				}
 			case w := <-b.done:
 				b.completed(w)
