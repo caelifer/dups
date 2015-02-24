@@ -9,11 +9,11 @@ import (
 	"log"
 	"math"
 	"os"
+	"path/filepath"
 	"regexp"
 	"runtime"
 	"sync"
 	"time"
-	"path/filepath"
 
 	"github.com/caelifer/dups/balancer"
 	// "github.com/caelifer/dups/fstree"

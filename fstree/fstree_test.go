@@ -148,7 +148,7 @@ func TestTreeWalkEmpty(t *testing.T) {
 		}
 	}()
 
-	testRoot := "/Users/timour/golang/src/github.com/caelifer/dups/t/c"
+	testRoot := "/Users/timour/golang/src/github.com/caelifer/dups/t/1/1"
 	i := 0
 
 	results := make([]string, 0, 256)
