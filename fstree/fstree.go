@@ -84,6 +84,7 @@ func (w *walker) walkDir(node *node, err error, fn nodeFn) {
 	w.wg.Add(1)
 
 	// Send to be processed in the workpool
+	// log.Printf("Scheduling async walk of %s", node.path)
 	go func() {
 		w.workQueue <- func() {
 			defer w.wg.Done() // Signal done at the end of the function
@@ -93,7 +94,7 @@ func (w *walker) walkDir(node *node, err error, fn nodeFn) {
 			if err != nil {
 				log.Println("WARN", err)
 
-				// erly termination if we cannot read directory
+				// early termination if we cannot read directory
 				return
 			}
 
@@ -109,6 +110,7 @@ func (w *walker) walkDir(node *node, err error, fn nodeFn) {
 			}
 		}
 	}()
+	// log.Println("Done scheduling")
 }
 
 // Little helper for specialized fast string + byte + string concatenation

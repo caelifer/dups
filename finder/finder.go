@@ -92,6 +92,7 @@ func (f *Finder) makeNodeMap(paths []string) mapreduce.MapFn {
 						mapreduce.KeyTypeFromString(path),
 						&node.Node{Path: path, Size: size},
 					)
+
 					// Increase seen files counter
 					atomic.AddUint64(&f.totalFiles, 1)
 				}
@@ -169,10 +170,10 @@ func (f *Finder) makeFileHashMap(fast bool) mapreduce.MapFn {
 	return func(out chan<- mapreduce.KeyValue, in <-chan mapreduce.Value) {
 		var wg sync.WaitGroup
 		for x := range in {
-			node_ := x.Value().(*node.Node) // Assert type
-
 			// Add to wait group
 			wg.Add(1)
+
+			node_ := x.Value().(*node.Node) // Assert type
 
 			// Calculate hash using balancer
 			go func(n *node.Node) {
