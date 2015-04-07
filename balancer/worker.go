@@ -56,9 +56,10 @@ func (w *worker) QueueSize() int {
 
 func (w *worker) Run(done chan<- Worker) {
 	for {
-		(<-w.reqs)() // run job
-		// log.Printf("Done with job for %s", w)
+		job := <-w.reqs
+		job() // run job
 		done <- w
+		// log.Printf("Done with job for %s", w)
 	}
 }
 
