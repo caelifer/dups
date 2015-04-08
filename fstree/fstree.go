@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"sync"
 
-	"github.com/caelifer/dups/balancer"
+	"github.com/caelifer/scheduler"
 )
 
 // Distributed file system tree walker
@@ -16,9 +16,9 @@ import (
 type nodeFn func(path string, info os.FileInfo, err error) error
 
 // Walk is a primary interface to this package. It matches signature of filepath.Walk().
-func Walk(workQueue balancer.WorkQueue, path string, fn nodeFn) error {
+func Walk(sched scheduler.Scheduler, path string, fn nodeFn) error {
 	// Create walker object
-	w := newWalker(workQueue, path)
+	w := newWalker(sched, path)
 
 	// Construct node from provided path
 	info, err := os.Lstat(path)
@@ -45,15 +45,15 @@ func newNode(path string, info os.FileInfo) *node {
 }
 
 type walker struct {
-	root      string
-	workQueue balancer.WorkQueue
-	wg        sync.WaitGroup
+	root  string
+	sched scheduler.Scheduler
+	wg    sync.WaitGroup
 }
 
-func newWalker(workQueue balancer.WorkQueue, root string) *walker {
+func newWalker(sched scheduler.Scheduler, root string) *walker {
 	return &walker{
-		root:      root,
-		workQueue: workQueue,
+		root:  root,
+		sched: sched,
 	}
 }
 
@@ -86,7 +86,7 @@ func (w *walker) walkDir(node *node, err error, fn nodeFn) {
 	// Send to be processed in the workpool
 	// log.Printf("Scheduling async walk of %s", node.path)
 	go func() {
-		w.workQueue <- func() {
+		w.sched.Schedule(func() {
 			defer w.wg.Done() // Signal done at the end of the function
 
 			// Read directory entries
@@ -108,7 +108,7 @@ func (w *walker) walkDir(node *node, err error, fn nodeFn) {
 				// Process node, ignore errors
 				w.walkNode(newNode(path, entry), nil, fn)
 			}
-		}
+		})
 	}()
 	// log.Println("Done scheduling")
 }
