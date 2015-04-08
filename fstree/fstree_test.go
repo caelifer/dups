@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/caelifer/dups/balancer"
 	"github.com/caelifer/dups/fstree"
+	"github.com/caelifer/scheduler"
 )
 
 func TestTreeWalk(t *testing.T) {
@@ -28,7 +28,7 @@ func TestTreeWalk(t *testing.T) {
 		results := make([]string, 0, 256)
 		testdir := testRoot + strconv.Itoa(i)
 
-		err := fstree.Walk(balancer.NewWorkQueue(nprocs), testdir, func(path string, info os.FileInfo, err error) error {
+		err := fstree.Walk(scheduler.New(nprocs, 1024), testdir, func(path string, info os.FileInfo, err error) error {
 			results = append(results, path)
 			return nil
 		})
@@ -61,7 +61,7 @@ func TestTreeWalk11(t *testing.T) {
 	nprocs := runtime.NumCPU()
 	t.Logf("Using %d CPU threads\n", nprocs)
 
-	err := fstree.Walk(balancer.NewWorkQueue(nprocs), testdir, func(path string, info os.FileInfo, err error) error {
+	err := fstree.Walk(scheduler.New(nprocs, 1024), testdir, func(path string, info os.FileInfo, err error) error {
 		results = append(results, path)
 		return nil
 	})
@@ -93,7 +93,7 @@ func TestTreeWalk12(t *testing.T) {
 	nprocs := runtime.NumCPU()
 	t.Logf("Using %d CPU threads\n", nprocs)
 
-	err := fstree.Walk(balancer.NewWorkQueue(nprocs), testdir, func(path string, info os.FileInfo, err error) error {
+	err := fstree.Walk(scheduler.New(nprocs, 1024), testdir, func(path string, info os.FileInfo, err error) error {
 		results = append(results, path)
 		return nil
 	})
@@ -125,7 +125,7 @@ func TestTreeWalk13(t *testing.T) {
 	nprocs := runtime.NumCPU()
 	t.Logf("Using %d CPU threads\n", nprocs)
 
-	err := fstree.Walk(balancer.NewWorkQueue(nprocs), testdir, func(path string, info os.FileInfo, err error) error {
+	err := fstree.Walk(scheduler.New(nprocs, 1024), testdir, func(path string, info os.FileInfo, err error) error {
 		results = append(results, path)
 		return nil
 	})
@@ -148,7 +148,7 @@ func TestTreeWalkEmpty(t *testing.T) {
 		}
 	}()
 
-	testRoot := "/Users/timour/golang/src/github.com/caelifer/dups/t/c"
+	testRoot := "/Users/timour/golang/src/github.com/caelifer/dups/t/c/a"
 	i := 0
 
 	results := make([]string, 0, 256)
@@ -157,7 +157,7 @@ func TestTreeWalkEmpty(t *testing.T) {
 	nprocs := runtime.NumCPU()
 	t.Logf("Using %d CPU threads\n", nprocs)
 
-	err := fstree.Walk(balancer.NewWorkQueue(nprocs), testdir, func(path string, info os.FileInfo, err error) error {
+	err := fstree.Walk(scheduler.New(nprocs, 1024), testdir, func(path string, info os.FileInfo, err error) error {
 		results = append(results, path)
 		return nil
 	})
