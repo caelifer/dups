@@ -168,7 +168,7 @@ func (*Finder) reduceByFileSize() mapreduce.ReduceFn {
 
 func (f *Finder) makeFileHashMap(fast bool) mapreduce.MapFn {
 	return func(out chan<- mapreduce.KeyValue, in <-chan mapreduce.Value) {
-		var wg sync.WaitGroup
+		wg := new(sync.WaitGroup) // Heap
 		for x := range in {
 			// Add to wait group
 			wg.Add(1)

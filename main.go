@@ -14,7 +14,7 @@ import (
 )
 
 // Internal constant to control number of Worker threads in balancer's worker pool
-const workerPoolMultiplier = 2 // Use twice the available cores
+const workerPoolMultiplier = 1 << 3 // Use eight times the available cores
 
 // Flags
 var (
