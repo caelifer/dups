@@ -8,16 +8,16 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/caelifer/dups/balancer"
 	"github.com/caelifer/dups/fstree"
 	"github.com/caelifer/dups/mapreduce"
 	"github.com/caelifer/dups/node"
+	"github.com/caelifer/scheduler"
 )
 
 // Finder
 type Finder struct {
 	// Work Queue
-	workQueue balancer.WorkQueue
+	sched scheduler.Scheduler
 
 	// Stats
 	totalDirs        uint64
@@ -27,8 +27,8 @@ type Finder struct {
 	totalTime        time.Duration
 }
 
-func NewFinder(nworkers int) *Finder {
-	return &Finder{workQueue: balancer.NewWorkQueue(nworkers)}
+func New(nworkers, njobs int) *Finder {
+	return &Finder{sched: scheduler.New(nworkers, njobs)}
 }
 
 func (f *Finder) SetTimeSpent(d time.Duration) {
@@ -37,7 +37,7 @@ func (f *Finder) SetTimeSpent(d time.Duration) {
 
 func (f Finder) Stats() string {
 	// Stats report
-	return fmt.Sprintf("Examined %d files in %d directories [%s], found %d dups, total wasted space %.2fGB",
+	return fmt.Sprintf("Examined %d files in %d directories [%s], found %d dups, total wasted space %.2fGiB",
 		f.totalFiles, f.totalDirs, f.totalTime, f.totalCopies, float64(f.totalWastedSpace)/(1024*1024*1024))
 }
 
@@ -71,7 +71,7 @@ func (f *Finder) makeNodeMap(paths []string) mapreduce.MapFn {
 		// Process all command line paths
 		for _, path_ := range paths {
 			// err := filepath.Walk(path_, func(path string, info os.FileInfo, err error) error {
-			err := fstree.Walk(f.workQueue, path_, func(path string, info os.FileInfo, err error) error {
+			err := fstree.Walk(f.sched, path_, func(path string, info os.FileInfo, err error) error {
 				// Handle passthrough error
 				if err != nil {
 					log.Println("WARN", err)
@@ -177,7 +177,7 @@ func (f *Finder) makeFileHashMap(fast bool) mapreduce.MapFn {
 
 			// Calculate hash using balancer
 			go func(n *node.Node) {
-				f.workQueue <- func() {
+				f.sched.Schedule(func() {
 					defer wg.Done() // Signal done
 
 					// Calculate hash using fast calculation if required
@@ -192,7 +192,7 @@ func (f *Finder) makeFileHashMap(fast bool) mapreduce.MapFn {
 						mapreduce.KeyTypeFromString(n.Hash),
 						n,
 					)
-				}
+				})
 			}(node_)
 		}
 		// Wait for all results be submitted

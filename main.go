@@ -18,11 +18,12 @@ const workerPoolMultiplier = 2 // Use twice the available cores
 
 // Flags
 var (
-	cpuprofile  = flag.String("cpuprofile", "", "write cpu profile to file")
-	memprofile  = flag.String("memprofile", "", "write memory profile to file")
-	workerCount = flag.Int("jobs", runtime.NumCPU()*workerPoolMultiplier, "Number of parallel jobs")
-	output      = flag.String("output", "-", "write output to a file. Default: STDOUT")
-	stats       = flag.Bool("stats", false, "display runtime statistics on STDERR")
+	cpuprofile   = flag.String("cpuprofile", "", "write cpu profile to file")
+	memprofile   = flag.String("memprofile", "", "write memory profile to file")
+	workerCount  = flag.Int("workers", runtime.NumCPU()*workerPoolMultiplier, "Number of parallel jobs")
+	bufferedJobs = flag.Int("jbuffer", 1<<10, "Number of pending work units")
+	output       = flag.String("output", "-", "write output to a file. Default: STDOUT")
+	stats        = flag.Bool("stats", false, "display runtime statistics on STDERR")
 )
 
 // Start of execution
@@ -73,7 +74,7 @@ func main() {
 	t1 := time.Now()
 
 	// Find all dups and report to output
-	find := finder.NewFinder(*workerCount)
+	find := finder.New(*workerCount, *bufferedJobs)
 	for d := range find.AllDups(paths) {
 		fmt.Fprintln(out, d)
 	}
