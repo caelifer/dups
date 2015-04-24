@@ -85,7 +85,7 @@ func (f *Finder) makeNodeMap(paths []string) mapreduce.MapFn {
 				}
 
 				// Only process simple files
-				if IsRegularFile(info) {
+				if isRegularFile(info) {
 					size := info.Size()
 
 					out <- mapreduce.NewKVType(
@@ -203,6 +203,6 @@ func (f *Finder) reduceDups() mapreduce.ReduceFn {
 	}
 }
 
-func IsRegularFile(fi os.FileInfo) bool {
+func isRegularFile(fi os.FileInfo) bool {
 	return fi.Mode()&os.ModeType == 0
 }
