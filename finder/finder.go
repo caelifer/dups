@@ -14,6 +14,14 @@ import (
 	"github.com/caelifer/scheduler"
 )
 
+var nodePool *sync.Pool
+
+func init() {
+	nodePool = &sync.Pool{
+		New: func() interface{} { return new(node.Node) },
+	}
+}
+
 // Finder
 type Finder struct {
 	// Work Queue
@@ -88,9 +96,13 @@ func (f *Finder) makeNodeMap(paths []string) mapreduce.MapFn {
 				if IsRegularFile(info) {
 					size := info.Size()
 
+					node := nodePool.Get().(*node.Node)
+					node.Path =  path
+					node.Size = size
+
 					out <- mapreduce.NewKVType(
 						mapreduce.KeyTypeFromString(path),
-						&node.Node{Path: path, Size: size},
+						node,
 					)
 
 					// Increase seen files counter
@@ -119,6 +131,9 @@ func (f *Finder) reduceByFileName() mapreduce.ReduceFn {
 			if _, ok := byName[path]; !ok {
 				byName[path] = node
 				out <- node // send first copy
+			} else {
+				// Return node to pool
+				nodePool.Put(node)
 			}
 		}
 	}
@@ -163,6 +178,16 @@ func (*Finder) reduceByFileSize() mapreduce.ReduceFn {
 				bySize[size] = []*node.Node{n}
 			}
 		}
+
+		// Clean-up
+		for _, v := range bySize {
+			if len(v) == 1 {
+				// Return node back to pool
+				nodePool.Put(v[0])
+			}
+		}
+		// Finalize map
+		bySize = nil
 	}
 }
 
@@ -226,6 +251,16 @@ func (*Finder) reduceByHash() mapreduce.ReduceFn {
 				byHash[hash] = []*node.Node{n}
 			}
 		}
+
+		// Clean-up
+		for _, v := range byHash {
+			if len(v) == 1 {
+				// Return node back to pool
+				nodePool.Put(v[0])
+			}
+		}
+		// Finalize map
+		byHash = nil
 	}
 }
 
