@@ -47,19 +47,19 @@ func (f *Finder) AllDups(paths []string) <-chan mapreduce.Value {
 		[]mapreduce.MapReducePair{
 			{
 				f.makeNodeMap(paths),
-				f.reduceByFileName(),
+				mapreduce.FilterUnique,
 			}, {
 				f.makeFileSizeMap(),
-				f.reduceByFileSize(),
+				mapreduce.FilterMatching,
 			}, {
 				f.makeFileHashMap(true),
-				f.reduceByHash(),
+				mapreduce.FilterMatching,
 			}, {
 				f.makeFileHashMap(false),
-				f.reduceByHash(),
+				mapreduce.FilterMatching,
 			}, {
-				f.reportMapDups(),
-				f.reportReduceDups(),
+				f.mapDups(),
+				f.reduceDups(),
 			},
 		}...,
 	)
@@ -106,24 +106,6 @@ func (f *Finder) makeNodeMap(paths []string) mapreduce.MapFn {
 	}
 }
 
-// reduceByFileName custom function remove nodes with duplicate paths
-func (f *Finder) reduceByFileName() mapreduce.ReduceFn {
-	return func(out chan<- mapreduce.Value, in <-chan mapreduce.KeyValue) {
-		byName := make(map[mapreduce.KeyType]*node.Node)
-
-		for x := range in {
-			path := x.Key()                // Get key
-			node := x.Value().(*node.Node) // Assert type
-
-			// Add values to the map for aggregation, skip nodes with the same path
-			if _, ok := byName[path]; !ok {
-				byName[path] = node
-				out <- node // send first copy
-			}
-		}
-	}
-}
-
 // Very simple function to map nodes by size
 func (*Finder) makeFileSizeMap() mapreduce.MapFn {
 	return func(out chan<- mapreduce.KeyValue, in <-chan mapreduce.Value) {
@@ -134,34 +116,6 @@ func (*Finder) makeFileSizeMap() mapreduce.MapFn {
 				mapreduce.KeyTypeFromInt64(node.Size),
 				node,
 			)
-		}
-	}
-}
-
-// reduceByFileSize custom function to filter files by size
-func (*Finder) reduceByFileSize() mapreduce.ReduceFn {
-	return func(out chan<- mapreduce.Value, in <-chan mapreduce.KeyValue) {
-		bySize := make(map[mapreduce.KeyType][]*node.Node)
-
-		for x := range in {
-			size := x.Key()             // Get key
-			n := x.Value().(*node.Node) // Assert type
-
-			// Add values to the map for aggregation
-			if v, ok := bySize[size]; ok {
-				// Found node with the same file size
-				if len(v) == 1 {
-					// First time we found duplicate, send first node too
-					out <- v[0]
-				}
-				// Add new node to a list
-				bySize[size] = append(v, n)
-				// Send duplicate downstream
-				out <- n
-			} else {
-				// Store first copy
-				bySize[size] = []*node.Node{n}
-			}
 		}
 	}
 }
@@ -200,80 +154,52 @@ func (f *Finder) makeFileHashMap(fast bool) mapreduce.MapFn {
 	}
 }
 
-func (*Finder) reduceByHash() mapreduce.ReduceFn {
-	return func(out chan<- mapreduce.Value, in <-chan mapreduce.KeyValue) {
-		byHash := make(map[mapreduce.KeyType][]*node.Node)
-
-		for x := range in {
-			hash := x.Key()
-			n := x.Value().(*node.Node) // Assert type
-
-			// Add hash value to a node
-			n.Hash = hash.String()
-
-			if v, ok := byHash[hash]; ok {
-				// Found node with the same SHA1 hash
-				// Send out aggregeted results
-				if len(v) == 1 {
-					// First time we found duplicate, send first node too
-					out <- v[0]
-				}
-				// Add new node to a list
-				byHash[hash] = append(v, n)
-				// Send new node
-				out <- n
-			} else {
-				byHash[hash] = []*node.Node{n}
-			}
-		}
-	}
-}
-
 // fanal map
-func (*Finder) reportMapDups() mapreduce.MapFn {
+func (f *Finder) mapDups() mapreduce.MapFn {
 	return func(out chan<- mapreduce.KeyValue, in <-chan mapreduce.Value) {
 		for x := range in {
+			// Update stats
+			atomic.AddUint64(&f.totalCopies, 1)
 			n := x.Value().(*node.Node) // Type assert
-			h := n.Hash
 			out <- mapreduce.NewKVType(
-				mapreduce.KeyTypeFromString(h),
-				n,
+				mapreduce.KeyType(n.Hash),
+				&Dup{Node: n},
 			)
 		}
 	}
 }
 
 // final reduce
-func (f *Finder) reportReduceDups() mapreduce.ReduceFn {
+func (f *Finder) reduceDups() mapreduce.ReduceFn {
 	return func(out chan<- mapreduce.Value, in <-chan mapreduce.KeyValue) {
-		byHash := make(map[string][]*node.Node)
+		byHash := make(map[string][]Dup)
 
 		for x := range in {
-			n := x.Value().(*node.Node) // Type assert
+			d := x.Value().(Dup) // Type assert
 
 			// Aggregate
-			if v, ok := byHash[n.Hash]; ok {
+			if v, ok := byHash[d.Hash]; ok {
 				// Found node with the same content
-				byHash[n.Hash] = append(v, n)
+				byHash[d.Hash] = append(v, d)
 			} else {
-				byHash[n.Hash] = []*node.Node{n}
+				byHash[d.Hash] = []Dup{d}
 			}
 		}
 
 		// Reduce
-		for _, nodes := range byHash {
-			count := len(nodes)
-			if count > 1 {
-				// Update free size stats
-				atomic.AddUint64(&f.totalWastedSpace, uint64(nodes[0].Size*int64(count-1)))
+		for _, dups := range byHash {
+			count := len(dups)
+			// Update free size stats
+			atomic.AddUint64(&f.totalWastedSpace, uint64(dups[0].Size*int64(count-1)))
 
-				for _, n := range nodes {
-					// Update dups number stats
-					atomic.AddUint64(&f.totalCopies, 1)
-					out <- &Dup{n, count}
-				}
+			for _, d := range dups {
+				// Update dups number stats
+				d.Count = count
+				out <- d
 			}
 		}
+
+		byHash = nil
 	}
 }
 
