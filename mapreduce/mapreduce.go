@@ -27,7 +27,11 @@ type ReduceFn func(out chan<- Value, in <-chan KeyValue)
 func Reduce(in <-chan KeyValue, reduceFn ReduceFn) <-chan Value {
 	out := make(chan Value)
 	go func() {
-		reduceFn(out, in)
+		if reduceFn == nil {
+			out <- <-in
+		} else {
+			reduceFn(out, in)
+		}
 		close(out) // always clean-up
 	}()
 	return out
@@ -47,4 +51,49 @@ func Pipeline(mrps ...MapReducePair) <-chan Value {
 		out = Reduce(Map(out, mrp.Map), mrp.Reduce)
 	}
 	return out
+}
+
+// Standard reducer that sands out multiple matching values
+func FilterMatching(out chan<- Value, in <-chan KeyValue) {
+	byHash := make(map[KeyType][]Value)
+
+	for x := range in {
+		hash := x.Key()
+
+		if vec, ok := byHash[hash]; ok {
+			// Found node with the same hash
+			// Send out aggregeted results
+			if len(vec) == 1 {
+				// First time we found duplicate, send first node too
+				out <- vec[0]
+			}
+			// Add new node to a list
+			byHash[hash] = append(vec, x)
+			// Send new node
+			out <- x
+		} else {
+			byHash[hash] = []Value{x}
+		}
+	}
+
+	// Clean-up
+	byHash = nil
+}
+
+// Standar reducer that sends out unique values
+func FilterUnique(out chan<- Value, in <-chan KeyValue) {
+	byHash := make(map[KeyType]Value)
+
+	for x := range in {
+		key := x.Key()
+		if _, ok := byHash[key]; !ok {
+			// New value, send it record and send it out
+			byHash[key] = x
+			out <- x
+		}
+		x = nil // help GC
+	}
+
+	// Clean-up
+	byHash = nil
 }
