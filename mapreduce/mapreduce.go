@@ -80,7 +80,7 @@ func FilterMatching(out chan<- Value, in <-chan KeyValue) {
 	byHash = nil
 }
 
-// Standar reducer that sends out unique values
+// Standard reducer that sends out unique values
 func FilterUnique(out chan<- Value, in <-chan KeyValue) {
 	byHash := make(map[KeyType]Value)
 
