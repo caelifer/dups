@@ -14,7 +14,7 @@ import (
 )
 
 // Internal constant to control number of Worker threads in balancer's worker pool
-const workerPoolMultiplier = 1 << 3 // Use eight times the available cores
+const workerPoolMultiplier = 8 // Use eight times the available cores
 
 // Start of execution
 func main() {
