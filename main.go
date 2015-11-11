@@ -8,6 +8,7 @@ import (
 	"os"
 	"runtime"
 	"runtime/pprof"
+	"runtime/trace"
 	"time"
 
 	"github.com/caelifer/dups/finder"
@@ -22,6 +23,7 @@ func main() {
 	var (
 		cpuprofile   = flag.String("cpuprofile", "", "write cpu profile to file")
 		memprofile   = flag.String("memprofile", "", "write memory profile to file")
+		tracefile    = flag.String("tracefile", "", "write trace output to a file")
 		workerCount  = flag.Int("workers", runtime.NumCPU()*workerPoolMultiplier, "Number of parallel jobs")
 		bufferedJobs = flag.Int("jbuffer", 1<<10, "Number of pending work units")
 		output       = flag.String("output", "-", "write output to a file. Default: STDOUT")
@@ -54,6 +56,16 @@ func main() {
 			pprof.WriteHeapProfile(f)
 			f.Close()
 		}()
+	}
+
+	// Run with execution tracer
+	if *tracefile != "" {
+		f, err := os.Create(*tracefile)
+		if err != nil {
+			log.Fatal(err)
+		}
+		trace.Start(f)
+		defer trace.Stop()
 	}
 
 	// Process command line params
