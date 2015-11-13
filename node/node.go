@@ -2,6 +2,7 @@ package node
 
 import (
 	"crypto/sha1"
+	"encoding/hex"
 	"errors"
 	"io"
 	"log"
@@ -61,30 +62,6 @@ func (n *Node) CalculateHash(fast bool) error {
 	}
 
 	// Add hash value
-	// node.Hash = fmt.Sprintf("%0x", hash.Sum(nil))
-	n.Hash = hashToString(hash.Sum(nil))
+	n.Hash = hex.EncodeToString(hash.Sum(nil))
 	return nil
-}
-
-func halfByteToHex(b byte) byte {
-	c := b & 0xf
-	switch c {
-	case 0, 1, 2, 3, 4, 5, 6, 7, 8, 9:
-		return byte('0') + c
-	case 0xa, 0xb, 0xc, 0xd, 0xe, 0xf:
-		return byte('a') + c - 0xa
-	}
-	return 0 // never reached
-}
-
-func byteToHex(b byte) (byte, byte) {
-	return halfByteToHex(b >> 4), halfByteToHex(b)
-}
-
-func hashToString(bts []byte) string {
-	res := make([]byte, len(bts)*2)
-	for i, b := range bts {
-		res[i*2], res[i*2+1] = byteToHex(b)
-	}
-	return string(res)
 }
