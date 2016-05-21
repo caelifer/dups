@@ -9,7 +9,7 @@ import (
 	"os"
 )
 
-const blockSize = 4096 * 4 // Guestimate of a FS block-size for optimal read call
+const blockSize = 1024 * 64 // Guestimate of a block-size for optimal read call
 
 // Node type
 type Node struct {
