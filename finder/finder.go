@@ -47,16 +47,16 @@ func (f *Finder) AllDups(paths []string) <-chan mapreduce.Value {
 		[]mapreduce.MapReducePair{
 			{
 				f.makeNodeMap(paths),
-				mapreduce.FilterUnique,
+				mapreduce.FilterDuplicates,
 			}, {
 				f.makeFileSizeMap(),
-				mapreduce.FilterMatching,
+				mapreduce.FilterUniques,
 			}, {
 				f.makeFileHashMap(true),
-				mapreduce.FilterMatching,
+				mapreduce.FilterUniques,
 			}, {
 				f.makeFileHashMap(false),
-				mapreduce.FilterMatching,
+				mapreduce.FilterUniques,
 			}, {
 				f.mapDups(),
 				f.reduceDups(),
