@@ -6,10 +6,11 @@ import (
 	"errors"
 	"io"
 	"log"
-	"os"
+
+	"golang.org/x/exp/mmap"
 )
 
-const blockSize = 1024 * 64 // Guestimate of a block-size for optimal read call
+const blockSize = 1024 * 4 // Guestimate of a block-size for optimal read call
 
 // Node type
 type Node struct {
@@ -36,13 +37,16 @@ func (n *Node) CalculateHash(fast bool) error {
 	}
 
 	// Open file
-	file, err := os.Open(n.Path)
+	rat, err := mmap.Open(n.Path)
 	if err != nil {
 		log.Println("WARN", err)
 		return err
 	}
 	// Never forget to close it
-	defer file.Close()
+	defer rat.Close()
+
+	// Wrap MMap ReaderAt with io.SectionReader
+	file := io.NewSectionReader(rat, 0, int64(rat.Len()))
 
 	var nbytes int64 // bytes read
 	hash := sha1.New()
