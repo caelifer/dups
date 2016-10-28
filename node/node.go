@@ -9,8 +9,6 @@ import (
 	"os"
 )
 
-const blockSize = 1024 * 64 // Guestimate of a block-size for optimal read call
-
 // Node type
 type Node struct {
 	Path string // File path
@@ -27,8 +25,9 @@ func (n *Node) CalculateHash(fast bool) error {
 	readSize := n.Size // by default, read the entire file
 
 	if fast {
-		if n.Size > blockSize {
-			readSize = blockSize // Limit number of read bytes to BlockSize on fast pass
+		if n.Size > pageSize {
+			// Limit number of read bytes to BlockSize on fast pass
+			readSize = pageSize // blockSize is a platform dependent defined in the appropriate file
 		} else {
 			// Skip small file on a "fast" pass
 			return nil
