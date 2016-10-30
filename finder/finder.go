@@ -52,10 +52,7 @@ func (f *Finder) AllDups(paths []string) <-chan mapreduce.Value {
 				f.makeFileSizeMap(),
 				mapreduce.FilterUniques,
 			}, {
-				f.makeFileHashMap(true),
-				mapreduce.FilterUniques,
-			}, {
-				f.makeFileHashMap(false),
+				f.makeFileHashMap(),
 				mapreduce.FilterUniques,
 			}, {
 				f.mapDups(),
@@ -120,7 +117,7 @@ func (*Finder) makeFileSizeMap() mapreduce.MapFn {
 	}
 }
 
-func (f *Finder) makeFileHashMap(fast bool) mapreduce.MapFn {
+func (f *Finder) makeFileHashMap() mapreduce.MapFn {
 	return func(out chan<- mapreduce.KeyValue, in <-chan mapreduce.Value) {
 		wg := new(sync.WaitGroup) // Heap
 		for x := range in {
@@ -130,8 +127,7 @@ func (f *Finder) makeFileHashMap(fast bool) mapreduce.MapFn {
 			go func(n *node.Node) {
 				f.sched.Schedule(func() {
 					defer wg.Done() // Signal done
-					// Calculate hash using fast calculation if required
-					err := n.CalculateHash(fast) // Fast hash calculation - SHA1 of first 1024 bytes
+					err := n.CalculateHash()
 					if err != nil {
 						// Skip files for which we failed to calculate SHA1 hash
 						// log.Printf("WARN Unable calculate SHA1 hash for %q\n", node.Path)

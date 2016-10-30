@@ -21,19 +21,7 @@ func (n *Node) Value() interface{} {
 }
 
 // Calculate hash
-func (n *Node) CalculateHash(fast bool) error {
-	readSize := n.Size // by default, read the entire file
-
-	if fast {
-		if n.Size > pageSize {
-			// Limit number of read bytes to BlockSize on fast pass
-			readSize = pageSize // blockSize is a platform dependent defined in the appropriate file
-		} else {
-			// Skip small file on a "fast" pass
-			return nil
-		}
-	}
-
+func (n *Node) CalculateHash() error {
 	// Open file
 	file, err := os.Open(n.Path)
 	if err != nil {
@@ -47,14 +35,14 @@ func (n *Node) CalculateHash(fast bool) error {
 	hash := sha1.New()
 
 	// Always read no more that the file size already determined
-	nbytes, err = io.CopyN(hash, file, readSize) // Use io.CopyN() for optimal filesystem and memory use
+	nbytes, err = io.CopyN(hash, file, n.Size) // Use io.CopyN() for optimal filesystem and memory use
 	if err != nil {
 		log.Println("WARN", err)
 		return err
 	}
 
 	// Paranoid sanity check
-	if nbytes != readSize {
+	if nbytes != n.Size {
 		err = errors.New("Partial read: " + n.Path)
 		log.Println("WARN", err)
 		return err
