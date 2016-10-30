@@ -1,5 +1,5 @@
 # Dups - a fast duplicates finder [![Go Report Card](https://goreportcard.com/badge/github.com/caelifer/dups)](https://goreportcard.com/report/github.com/caelifer/dups)
-Dups finds duplicate files in the supplied directories regardless the file name. It also calculates the amont of wasted storage along the way.
+`dups` finds duplicate files in the supplied directories regardless the file name. It also calculates the amont of wasted storage along the way.
 
 ## Installation
 ```
