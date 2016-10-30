@@ -126,14 +126,10 @@ func (f *Finder) makeFileHashMap(fast bool) mapreduce.MapFn {
 		for x := range in {
 			// Add to wait group
 			wg.Add(1)
-
-			node_ := x.Value().(*node.Node) // Assert type
-
 			// Calculate hash using balancer
 			go func(n *node.Node) {
 				f.sched.Schedule(func() {
 					defer wg.Done() // Signal done
-
 					// Calculate hash using fast calculation if required
 					err := n.CalculateHash(fast) // Fast hash calculation - SHA1 of first 1024 bytes
 					if err != nil {
@@ -141,13 +137,13 @@ func (f *Finder) makeFileHashMap(fast bool) mapreduce.MapFn {
 						// log.Printf("WARN Unable calculate SHA1 hash for %q\n", node.Path)
 						return
 					}
-
+					// Report result
 					out <- mapreduce.NewKVType(
 						mapreduce.KeyTypeFromString(n.Hash),
 						n,
 					)
 				})
-			}(node_)
+			}(x.Value().(*node.Node))
 		}
 		// Wait for all results be submitted
 		wg.Wait()
