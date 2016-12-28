@@ -27,8 +27,8 @@ type Finder struct {
 	totalTime        time.Duration
 }
 
-func New(nworkers, njobs int) *Finder {
-	return &Finder{sched: scheduler.New(nworkers, njobs)}
+func New(nworkers int) *Finder {
+	return &Finder{sched: scheduler.New(nworkers)}
 }
 
 func (f *Finder) SetTimeSpent(d time.Duration) {
