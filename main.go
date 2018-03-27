@@ -110,3 +110,5 @@ func getOutput(path string) (io.WriteCloser, error) {
 		return os.OpenFile(path, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0666)
 	}
 }
+
+// vim: :sw=4:ts=4:noexpandtab
