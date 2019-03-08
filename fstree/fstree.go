@@ -12,7 +12,7 @@ import (
 
 // Distributed file system tree walker
 
-// Heler type - matches parameter signature of filepath.Walk()
+// Helper type - matches parameter signature of filepath.Walk()
 type nodeFn func(path string, info os.FileInfo, err error) error
 
 // Walk is a primary interface to this package. It matches signature of filepath.Walk().
@@ -67,7 +67,7 @@ func (w *walker) walkNode(node *node, err error, fn nodeFn) error {
 
 	// ... then, recursively process directories
 	if node.info.IsDir() {
-		// Traverse directrory asnyncronously using balancer
+		// Traverse directory in parallel using balancer with fixed number of workers to avoid FD exhaustion.
 		w.walkDir(node, err, fn)
 	}
 
@@ -106,7 +106,9 @@ func (w *walker) walkDir(node *node, err error, fn nodeFn) {
 				path := fastStringConcat(node.path, os.PathSeparator, entry.Name())
 
 				// Process node, ignore errors
-				w.walkNode(newNode(path, entry), nil, fn)
+				if err := w.walkNode(newNode(path, entry), nil, fn); err != nil {
+					log.Printf("unable to walk %q: %v", path, err)
+				}
 			}
 		})
 	}()
