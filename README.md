@@ -8,11 +8,9 @@ go get -u github.com/caelifer/dups
 ## Usage
 ```
 dups -h
-Usage of dups:
+Usage of ./dups:
   -cpuprofile string
     	write cpu profile to file
-  -jbuffer int
-    	Number of pending work units (default 1024)
   -memprofile string
     	write memory profile to file
   -output string
