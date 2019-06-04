@@ -95,7 +95,7 @@ func main() {
 
 	// Display runtime stats if requested
 	if *stats {
-		log.Printf("INFO stats %s", find.Stats())
+		log.Printf("INFO stats: %s", find.Stats())
 	}
 }
 
