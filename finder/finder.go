@@ -66,9 +66,9 @@ func (f *Finder) AllDups(paths []string) <-chan mapreduce.Value {
 func (f *Finder) makeNodeMap(paths []string) mapreduce.MapFn {
 	return func(out chan<- mapreduce.KeyValue, _ <-chan mapreduce.Value) {
 		// Process all command line paths
-		for _, path_ := range paths {
+		for _, p := range paths {
 			// err := filepath.Walk(path_, func(path string, info os.FileInfo, err error) error {
-			err := fstree.Walk(f.sched, path_, func(path string, info os.FileInfo, err error) error {
+			err := fstree.Walk(f.sched, p, func(path string, info os.FileInfo, err error) error {
 				// Handle passthrough error
 				if err != nil {
 					log.Println("WARN", err)
