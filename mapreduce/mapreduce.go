@@ -75,9 +75,6 @@ func FilterUniques(out chan<- Value, in <-chan KeyValue) {
 			byHash[hash] = []Value{x}
 		}
 	}
-
-	// Clean-up
-	byHash = nil
 }
 
 // Standard reducer that drops values with duplicate keys sending out only unique matches.
@@ -91,9 +88,5 @@ func FilterDuplicates(out chan<- Value, in <-chan KeyValue) {
 			byHash[key] = x
 			out <- x
 		}
-		x = nil // help GC
 	}
-
-	// Clean-up
-	byHash = nil
 }
