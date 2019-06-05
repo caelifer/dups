@@ -30,7 +30,7 @@ func (n *Node) CalculateHash() error {
 		return err
 	}
 	// Never forget to close it
-	defer func() {_ = file.Close()}()
+	defer func() { _ = file.Close() }()
 
 	var nbytes int64 // bytes read
 	hash := sha1.New()

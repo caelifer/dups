@@ -190,8 +190,6 @@ func (f *Finder) reduceDups() mapreduce.ReduceFn {
 				out <- d
 			}
 		}
-
-		byHash = nil
 	}
 }
 
