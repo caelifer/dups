@@ -53,7 +53,8 @@ func Pipeline(mrps ...MapReducePair) <-chan Value {
 	return out
 }
 
-// Standard reducer that drops values with unique keys sending out the rest of the values.
+// FilterUniques is a standard reducer that drops values with unique keys sending out
+// the rest of the values.
 func FilterUniques(out chan<- Value, in <-chan KeyValue) {
 	byHash := make(map[KeyType][]Value)
 
@@ -75,12 +76,10 @@ func FilterUniques(out chan<- Value, in <-chan KeyValue) {
 			byHash[hash] = []Value{x}
 		}
 	}
-
-	// Clean-up
-	byHash = nil
 }
 
-// Standard reducer that drops values with duplicate keys sending out only unique matches.
+// FilterDuplicates is a standard reducer that drops values with duplicate keys sending
+// out only unique matches.
 func FilterDuplicates(out chan<- Value, in <-chan KeyValue) {
 	byHash := make(map[KeyType]Value)
 
@@ -91,9 +90,5 @@ func FilterDuplicates(out chan<- Value, in <-chan KeyValue) {
 			byHash[key] = x
 			out <- x
 		}
-		x = nil // help GC
 	}
-
-	// Clean-up
-	byHash = nil
 }

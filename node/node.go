@@ -16,11 +16,12 @@ type Node struct {
 	Hash string // String form of SHA1 hash
 }
 
+// Value returns node as a generic value.
 func (n *Node) Value() interface{} {
 	return n
 }
 
-// Calculate hash
+// CalculateHash calculates SHA1 value of the Node.
 func (n *Node) CalculateHash() error {
 	// Open file
 	file, err := os.Open(n.Path)
@@ -29,7 +30,7 @@ func (n *Node) CalculateHash() error {
 		return err
 	}
 	// Never forget to close it
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	var nbytes int64 // bytes read
 	hash := sha1.New()

@@ -7,7 +7,7 @@ type Value interface {
 	Value() interface{}
 }
 
-// Key interace is there to make sure that the value can be used in go built-in
+// Key interface is there to make sure that the value can be used in go built-in
 // map as a key.
 type Key interface {
 	Key() KeyType
