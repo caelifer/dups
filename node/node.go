@@ -25,7 +25,7 @@ func (n *Node) CalculateHash() error {
 	// Open file
 	file, err := os.Open(n.Path)
 	if err != nil {
-		log.Println("WARN", err)
+		log.Println("WARN", "CalculateHash", err)
 		return err
 	}
 	// Never forget to close it
@@ -36,8 +36,8 @@ func (n *Node) CalculateHash() error {
 
 	// Always read no more that the file size already determined
 	nbytes, err = io.CopyN(hash, file, n.Size) // Use io.CopyN() for optimal filesystem and memory use
-	if err != nil {
-		log.Println("WARN", err)
+	if err != nil && err != io.EOF {
+		log.Println("WARN", "CalculateHash", n.Path, err)
 		return err
 	}
 
