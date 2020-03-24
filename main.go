@@ -14,8 +14,10 @@ import (
 	"github.com/caelifer/dups/finder"
 )
 
-// Internal constant to control number of Worker threads in balancer's worker pool
+// Scale number of workers 8 times the number of cores
 const workerPoolMultiplier = 8 // Use eight times the available cores
+// Default workers count
+var defaultWorkerCount = runtime.NumCPU()*workerPoolMultiplier
 
 // Start of execution
 func main() {
@@ -24,7 +26,7 @@ func main() {
 		cpuprofile  = flag.String("cpuprofile", "", "write cpu profile to file")
 		memprofile  = flag.String("memprofile", "", "write memory profile to file")
 		tracefile   = flag.String("tracefile", "", "write trace output to a file")
-		workerCount = flag.Int("workers", runtime.NumCPU()*workerPoolMultiplier, "Number of parallel jobs")
+		workerCount = flag.Int("workers", defaultWorkerCount, "Number of parallel jobs")
 		output      = flag.String("output", "-", "write output to a file. Default: STDOUT")
 		stats       = flag.Bool("stats", false, "display runtime statistics on STDERR")
 	)
@@ -38,32 +40,30 @@ func main() {
 	// CPU profile
 	if *cpuprofile != "" {
 		f, err := os.Create(*cpuprofile)
-		if err != nil {
-			log.Fatal(err)
-		}
-		_ = pprof.StartCPUProfile(f)
+		errHandle(err, "failed to create CPU profiler output")
+		err = pprof.StartCPUProfile(f)
+		errHandle(err, "failed to start CPU profiler")
 		defer pprof.StopCPUProfile()
 	}
 
 	// Memory profile
 	if *memprofile != "" {
 		f, err := os.Create(*memprofile)
-		if err != nil {
-			log.Fatal(err)
-		}
+		errHandle(err, "failed to create Memory profiler output")
 		defer func() {
-			pprof.WriteHeapProfile(f)
-			f.Close()
+			err := pprof.WriteHeapProfile(f)
+			errHandle(err, "failed to write heap profile")
+			err = f.Close()
+			errHandle(err, "failed to close profiler")
 		}()
 	}
 
 	// Run with execution tracer
 	if *tracefile != "" {
 		f, err := os.Create(*tracefile)
-		if err != nil {
-			log.Fatal(err)
-		}
-		trace.Start(f)
+		errHandle(err, "failed to create trace file")
+		err = trace.Start(f)
+		errHandle(err, "failed to start trace")
 		defer trace.Stop()
 	}
 
@@ -76,10 +76,11 @@ func main() {
 
 	// Get output writer
 	out, err := getOutput(*output)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer out.Close()
+	errHandle(err, "failed to create output file")
+	defer func() {
+		err := out.Close()
+		errHandle(err, "failed to close output file")
+	}()
 
 	// Trace time spent
 	t1 := time.Now()
@@ -108,6 +109,13 @@ func getOutput(path string) (io.WriteCloser, error) {
 		return os.OpenFile(os.DevNull, os.O_CREATE|os.O_WRONLY, 0666)
 	default:
 		return os.OpenFile(path, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0666)
+	}
+}
+
+// Helper to handle errors
+func errHandle(err error, msg string) {
+	if err != nil {
+		log.Fatalf(msg+": %v", err)
 	}
 }
 
