@@ -17,7 +17,7 @@ import (
 // Scale number of workers 8 times the number of cores
 const workerPoolMultiplier = 8 // Use eight times the available cores
 // Default workers count
-var defaultWorkerCount = runtime.NumCPU()*workerPoolMultiplier
+var defaultWorkerCount = runtime.NumCPU() * workerPoolMultiplier
 
 // Start of execution
 func main() {
@@ -85,9 +85,9 @@ func main() {
 	// Trace time spent
 	t1 := time.Now()
 
-	// Find all dups and report to output
+	// Find all duplicate files and report to output
 	find := finder.New(*workerCount)
-	for d := range find.AllDups(paths) {
+	for d := range find.AllDuplicateFiles(paths) {
 		fmt.Fprintln(out, d)
 	}
 

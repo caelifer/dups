@@ -8,16 +8,17 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/caelifer/scheduler"
+
 	"github.com/caelifer/dups/fstree"
 	"github.com/caelifer/dups/mapreduce"
 	"github.com/caelifer/dups/node"
-	"github.com/caelifer/scheduler"
 )
 
 // Finder
 type Finder struct {
 	// Work Queue
-	sched scheduler.Scheduler
+	scheduler scheduler.Scheduler
 
 	// Stats
 	totalDirs        uint64
@@ -27,8 +28,8 @@ type Finder struct {
 	totalTime        time.Duration
 }
 
-func New(nworkers int) *Finder {
-	return &Finder{sched: scheduler.New(nworkers)}
+func New(nWorkers int) *Finder {
+	return &Finder{scheduler: scheduler.New(nWorkers)}
 }
 
 func (f *Finder) SetTimeSpent(d time.Duration) {
@@ -41,19 +42,19 @@ func (f Finder) Stats() string {
 		f.totalFiles, f.totalDirs, f.totalTime, f.totalCopies, float64(f.totalWastedSpace)/(1024*1024*1024))
 }
 
-func (f *Finder) AllDups(paths []string) <-chan mapreduce.Value {
+func (f *Finder) AllDuplicateFiles(paths []string) <-chan mapreduce.Value {
 	// Build a processing pipeline
 	return mapreduce.Pipeline(
 		[]mapreduce.MapReducePair{
 			{
 				f.makeNodeMap(paths),
-				mapreduce.FilterDuplicates,
+				mapreduce.FilterOutDuplicates,
 			}, {
 				f.makeFileSizeMap(),
-				mapreduce.FilterUniques,
+				mapreduce.FilterOutUniques,
 			}, {
 				f.makeFileHashMap(),
-				mapreduce.FilterUniques,
+				mapreduce.FilterOutUniques,
 			}, {
 				f.mapDups(),
 				f.reduceDups(),
@@ -68,8 +69,8 @@ func (f *Finder) makeNodeMap(paths []string) mapreduce.MapFn {
 		// Process all command line paths
 		for _, p := range paths {
 			// err := filepath.Walk(path_, func(path string, info os.FileInfo, err error) error {
-			err := fstree.Walk(f.sched, p, func(path string, info os.FileInfo, err error) error {
-				// Handle passthrough error
+			err := fstree.Walk(f.scheduler, p, func(path string, info os.FileInfo, err error) error {
+				// Handle passthroughs error
 				if err != nil {
 					log.Println("WARN", err)
 					return nil
@@ -107,12 +108,8 @@ func (f *Finder) makeNodeMap(paths []string) mapreduce.MapFn {
 func (*Finder) makeFileSizeMap() mapreduce.MapFn {
 	return func(out chan<- mapreduce.KeyValue, in <-chan mapreduce.Value) {
 		for x := range in {
-			node := x.Value().(*node.Node) // Assert type
-
-			out <- mapreduce.NewKVType(
-				mapreduce.KeyTypeFromInt64(node.Size),
-				node,
-			)
+			n := x.Value().(*node.Node) // Assert type
+			out <- mapreduce.NewKVType(mapreduce.KeyTypeFromInt64(n.Size), n)
 		}
 	}
 }
@@ -125,7 +122,7 @@ func (f *Finder) makeFileHashMap() mapreduce.MapFn {
 			wg.Add(1)
 			// Calculate hash using balancer
 			go func(n *node.Node) {
-				f.sched.Schedule(func() {
+				f.scheduler.Schedule(func() {
 					defer wg.Done() // Signal done
 					err := n.CalculateHash()
 					if err != nil {

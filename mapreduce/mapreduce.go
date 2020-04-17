@@ -18,7 +18,7 @@ func Map(in <-chan Value, mapFn MapFn) <-chan KeyValue {
 }
 
 // ReduceFn a function provided by the client code. It expects to aggregate
-// over the values povided by the in channel of KeyValue objects and send its
+// over the values provided by the in channel of KeyValue objects and send its
 // result to out Value channel.
 type ReduceFn func(out chan<- Value, in <-chan KeyValue)
 
@@ -45,17 +45,17 @@ type MapReducePair struct {
 
 // Pipeline builds a pipeline by chaining together provided Map/Reducer pairs.
 // It returns a <-chan of Value.
-func Pipeline(mrps ...MapReducePair) <-chan Value {
+func Pipeline(pairs ...MapReducePair) <-chan Value {
 	var out <-chan Value
-	for _, mrp := range mrps {
-		out = Reduce(Map(out, mrp.Map), mrp.Reduce)
+	for _, pair := range pairs {
+		out = Reduce(Map(out, pair.Map), pair.Reduce)
 	}
 	return out
 }
 
-// FilterUniques is a standard reducer that drops values with unique keys sending out
+// FilterOutUniques is a standard reducer that drops values with unique keys sending out
 // the rest of the values.
-func FilterUniques(out chan<- Value, in <-chan KeyValue) {
+func FilterOutUniques(out chan<- Value, in <-chan KeyValue) {
 	byHash := make(map[KeyType][]Value)
 
 	for x := range in {
@@ -63,7 +63,7 @@ func FilterUniques(out chan<- Value, in <-chan KeyValue) {
 
 		if vec, ok := byHash[hash]; ok {
 			// Found node with the same hash
-			// Send out aggregeted results
+			// Send out aggregated results
 			if len(vec) == 1 {
 				// First time we found duplicate, send first node too
 				out <- vec[0]
@@ -78,9 +78,9 @@ func FilterUniques(out chan<- Value, in <-chan KeyValue) {
 	}
 }
 
-// FilterDuplicates is a standard reducer that drops values with duplicate keys sending
+// FilterOutDuplicates is a standard reducer that drops values with duplicate keys sending
 // out only unique matches.
-func FilterDuplicates(out chan<- Value, in <-chan KeyValue) {
+func FilterOutDuplicates(out chan<- Value, in <-chan KeyValue) {
 	byHash := make(map[KeyType]Value)
 
 	for x := range in {

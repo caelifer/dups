@@ -1,2 +1,4 @@
 github.com/caelifer/scheduler v0.0.0-20190719022240-d9b12ac25bd2 h1:VYuHx2YSXGjnZgaBu+JhWfTG1HncGG/+W7edqj5wsgk=
 github.com/caelifer/scheduler v0.0.0-20190719022240-d9b12ac25bd2/go.mod h1:hT9ShWUOkT1EFCrZEkNG3sO2fjtdlKXGoM2VNbD9e5s=
+github.com/caelifer/scheduler v0.0.0-20200417010307-fcce5f5da957 h1:s8zAj4qaz67QHt7HxM8WbP0/JfEVQBWTEO2HpfgllFA=
+github.com/caelifer/scheduler v0.0.0-20200417010307-fcce5f5da957/go.mod h1:hT9ShWUOkT1EFCrZEkNG3sO2fjtdlKXGoM2VNbD9e5s=
