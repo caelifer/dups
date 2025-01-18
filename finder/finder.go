@@ -47,17 +47,17 @@ func (f *Finder) AllDuplicateFiles(paths []string) <-chan mapreduce.Value {
 	return mapreduce.Pipeline(
 		[]mapreduce.MapReducePair{
 			{
-				f.makeNodeMap(paths),
-				mapreduce.FilterOutDuplicates,
+				Map:    f.makeNodeMap(paths),
+				Reduce: mapreduce.FilterOutDuplicates,
 			}, {
-				f.makeFileSizeMap(),
-				mapreduce.FilterOutUniques,
+				Map:    f.makeFileSizeMap(),
+				Reduce: mapreduce.FilterOutUniques,
 			}, {
-				f.makeFileHashMap(),
-				mapreduce.FilterOutUniques,
+				Map:    f.makeFileHashMap(),
+				Reduce: mapreduce.FilterOutUniques,
 			}, {
-				f.mapDups(),
-				f.reduceDups(),
+				Map:    f.mapDups(),
+				Reduce: f.reduceDups(),
 			},
 		}...,
 	)
@@ -96,7 +96,6 @@ func (f *Finder) makeNodeMap(paths []string) mapreduce.MapFn {
 				}
 				return nil
 			})
-
 			if err != nil {
 				log.Fatal(err)
 			}
