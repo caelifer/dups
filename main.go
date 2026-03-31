@@ -88,7 +88,7 @@ func main() {
 	// Find all duplicate files and report to output
 	find := finder.New(*workerCount)
 	for d := range find.AllDuplicateFiles(paths) {
-		fmt.Fprintln(out, d)
+		_, _ = fmt.Fprintln(out, d)
 	}
 
 	// Update stats

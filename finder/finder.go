@@ -38,8 +38,8 @@ func (f *Finder) SetTimeSpent(d time.Duration) {
 
 func (f Finder) Stats() string {
 	// Stats report
-	return fmt.Sprintf("examined %d files in %d directories [%s], found %d dups, total wasted space %.2fGiB",
-		f.totalFiles, f.totalDirs, f.totalTime, f.totalCopies, float64(f.totalWastedSpace)/(1024*1024*1024))
+	return fmt.Sprintf("examined %d files in %d directories, found %d dups, total wasted space %.2fGiB [%s]",
+		f.totalFiles, f.totalDirs, f.totalCopies, float64(f.totalWastedSpace)/(1024*1024*1024), f.totalTime)
 }
 
 func (f *Finder) AllDuplicateFiles(paths []string) <-chan mapreduce.Value {

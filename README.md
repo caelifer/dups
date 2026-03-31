@@ -1,24 +1,29 @@
 # Dups - a fast duplicates finder [![Go Report Card](https://goreportcard.com/badge/github.com/caelifer/dups)](https://goreportcard.com/report/github.com/caelifer/dups)
-`dups` finds duplicate files in the supplied directories regardless the file name. It also calculates the amount of wasted storage along the way.
+
+`dups` finds duplicate files in the supplied directories regardless the file
+name. It also calculates the amount of wasted storage along the way.
 
 ## Installation
-```
+
+```bash
 go get -u github.com/caelifer/dups
 ```
+
 ## Usage
-```
+
+```text
 dups -h
 Usage of ./dups:
   -cpuprofile string
-    	write cpu profile to file
+    write cpu profile to file
   -memprofile string
-    	write memory profile to file
+    write memory profile to file
   -output string
-    	write output to a file. Default: STDOUT (default "-")
+    write output to a file; default: stdout ("-")
   -stats
-    	display runtime statistics on STDERR
+    display runtime statistics on stderr
   -tracefile string
-    	write trace output to a file
+    write trace output to a file
   -workers int
-    	Number of parallel jobs (default 64)
+    Number of parallel jobs (default 64)
 ```
